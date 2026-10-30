@@ -1,0 +1,16 @@
+# Build output
+app/build/
+build/
+*.obj
+*.pdb
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Test artifacts
+tools/out/
