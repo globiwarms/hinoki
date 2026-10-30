@@ -6,6 +6,7 @@ import sys
 import urllib.request
 
 API = "https://api.github.com"
+REPO = "arseniyru90-afk/hinoki"
 
 
 def token():
@@ -43,6 +44,24 @@ def api(method, path, tok, payload=None, raw=None, content_type=None):
         return e.code, e.read().decode()[:600]
 
 
+RELEASE_11_BODY = (
+    "## 檜 Hinoki v1.1.0\n\n"
+    "### Главное\n"
+    "- **Чистый цветок**: никакого затемнения экрана — меню появляется компактным окном ровно вокруг цветка\n"
+    "- **Лепестки не наезжают** друг на друга и не уезжают с орбиты\n"
+    "- **В центре — шестерёнка** настроек вместо логотипа\n"
+    "- **29 действий**: мут/деафен Discord, громкость, треки, скриншоты, блокировка/сон/перезагрузка, диспетчер задач, параметры Windows, калькулятор, эмодзи, буфер обмена, steam://, ссылки, свои хоткеи\n"
+    "- **Звуки стекла**: мягкий «блум» раскрытия и тик выбора — громкость и каждый звук настраиваются\n"
+    "- **Внешний вид**: палитра акцентов, прозрачность лепестков, сила свечения, светлое стекло, размер меню, подписи\n"
+    "- **Глобальный хоткей** открытия меню без мыши\n"
+    "- **2–8 лепестков**: добавляйте и убирайте в настройках\n"
+    "- **Клик мимо** закрывает меню, Esc — тоже; настройки — минималистичный glass-rail\n\n"
+    "### Установка\n"
+    "Скачайте `Hinoki.exe` и запустите. Шестерёнка в центре цветка — настройки.\n\n"
+    "**Full Changelog**: https://github.com/arseniyru90-afk/hinoki/compare/v1.0.0...v1.1.0"
+)
+
+
 if __name__ == "__main__":
     cmd = sys.argv[1]
     tok = token()
@@ -57,22 +76,12 @@ if __name__ == "__main__":
         print(status, body.get("full_name") if isinstance(body, dict) else body)
         if isinstance(body, dict) and body.get("full_name"):
             print("URL:", body["html_url"])
-    elif cmd == "release":
-        status, rel = api("POST", "/repos/arseniyru90-afk/hinoki/releases", tok, {
-            "tag_name": "v1.0.0",
+    elif cmd == "release11":
+        status, rel = api("POST", "/repos/" + REPO + "/releases", tok, {
+            "tag_name": "v1.1.0",
             "target_commitish": "main",
-            "name": "Hinoki v1.0.0",
-            "body": (
-                "## Первый релиз 檜\n\n"
-                "**Hinoki** — средняя кнопка мыши распускает стеклянный цветок: мут в Discord, музыка, приложения.\n\n"
-                "### Возможности\n"
-                "- 6 настраиваемых лепестков: Discord мут/деафен, мут системы, Play/Pause, запуск .exe и steam://, ссылки, свои хоткеи\n"
-                "- Настройки в центре цветка — живое превью, иконки, размер меню\n"
-                "- Автозапуск с Windows, acrylic-размытие, сидит в трее\n"
-                "- Ноль зависимостей: работает на любом Windows 10/11\n\n"
-                "### Установка\n"
-                "Скачайте `Hinoki.exe` ниже и запустите. Иконка появится в трее — средняя кнопка мыши откроет меню."
-            ),
+            "name": "Hinoki v1.1.0 — чистый цветок, 29 действий, звуки",
+            "body": RELEASE_11_BODY,
             "draft": False,
             "prerelease": False,
         })
@@ -84,10 +93,10 @@ if __name__ == "__main__":
                             content_type="application/vnd.microsoft.portable-executable")
             print(st, asset.get("browser_download_url") if isinstance(asset, dict) else asset)
     elif cmd == "pages":
-        status, body = api("POST", "/repos/arseniyru90-afk/hinoki/pages", tok, {
+        status, body = api("POST", "/repos/" + REPO + "/pages", tok, {
             "source": {"branch": "main", "path": "/docs"}
         })
         print(status, body if isinstance(body, dict) else body)
     elif cmd == "check":
-        status, body = api("GET", "/repos/arseniyru90-afk/hinoki", tok)
+        status, body = api("GET", "/repos/" + REPO, tok)
         print(status, body.get("html_url") if isinstance(body, dict) else body)
