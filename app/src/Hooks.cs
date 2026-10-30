@@ -9,6 +9,9 @@ namespace Hinoki
         /// <summary>Raised on middle-button DOWN with physical screen coordinates.</summary>
         public static event Action<int, int> MiddleDown;
 
+        /// <summary>Raised on left-button DOWN with physical screen coordinates (used to close the overlay).</summary>
+        public static event Action<int, int> LeftDown;
+
         /// <summary>When true the original middle click is swallowed by Hinoki.</summary>
         public static bool Intercept = true;
 
@@ -33,6 +36,14 @@ namespace Hinoki
 
         private static IntPtr HookProc(int nCode, IntPtr wParam, IntPtr lParam)
         {
+            if (nCode >= 0 && wParam.ToInt32() == 0x0201 && !Suppressed) // WM_LBUTTONDOWN
+            {
+                Native.MSLLHOOKSTRUCT info = (Native.MSLLHOOKSTRUCT)System.Runtime.InteropServices.Marshal.PtrToStructure(
+                    lParam, typeof(Native.MSLLHOOKSTRUCT));
+                var lh = LeftDown;
+                if (lh != null) lh(info.pt.X, info.pt.Y);
+            }
+
             if (nCode >= 0 && wParam.ToInt32() == Native.WM_MBUTTONDOWN && !Suppressed)
             {
                 Native.MSLLHOOKSTRUCT info = (Native.MSLLHOOKSTRUCT)System.Runtime.InteropServices.Marshal.PtrToStructure(

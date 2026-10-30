@@ -1,4 +1,4 @@
-// Hinoki — the fullscreen glass overlay that blooms around the cursor
+// Hinoki — the floating glass flower: a compact window exactly around the bloom, no dark backdrop
 using System;
 using System.Windows;
 using System.Windows.Controls;
@@ -12,12 +12,15 @@ namespace Hinoki
     public class OverlayWindow : Window
     {
         FlowerMenu _flower;
-        Border _tint;
+        bool _closing;
+
+        public static OverlayWindow Current;
 
         /// <summary>Diagnostics sink, wired to the crash log by App.</summary>
         internal static Action<string> Log = delegate { };
 
-        public static OverlayWindow Current;
+        /// <summary>Physical-pixel bounds of the open overlay (for the global hook).</summary>
+        static Rect _physBounds;
 
         public OverlayWindow()
         {
@@ -30,14 +33,12 @@ namespace Hinoki
             Focusable = false;
             Topmost = true;
             WindowStartupLocation = WindowStartupLocation.Manual;
-            Deactivated += delegate { SafeClose(); };
         }
 
         public void Open(int cursorX, int cursorY)
         {
             if (Current != null) return;
 
-            // monitor under the cursor (physical px)
             var pt = new Native.POINT { X = cursorX, Y = cursorY };
             IntPtr hmon = Native.MonitorFromPoint(pt, Native.MONITOR_DEFAULTTONEAREST);
             var mi = new Native.MONITORINFOEX();
@@ -52,47 +53,50 @@ namespace Hinoki
             double monX = mi.rcMonitor.Left * k;
             double monY = mi.rcMonitor.Top * k;
 
-            double F = Math.Min(monW, monH) * 0.80 * (App.Config.MenuSizePercent / 80.0);
-            F = Math.Max(340, Math.Min(1150, F));
+            double S = Math.Min(monW, monH) * 0.78 * (App.Config.MenuSizePercent / 78.0);
+            S = Math.Max(320, Math.Min(1100, S));
 
-            Left = monX; Top = monY;
-            Width = monW; Height = monH;
+            double pad = S * 0.06; // breathing room for the glow
+            double winSize = S + pad * 2;
 
-            var root = new Grid();
-
-            // dim + vignette backdrop
-            _tint = new Border();
-            _tint.Background = new RadialGradientBrush(Color.FromArgb(140, 6, 7, 10), Color.FromArgb(190, 4, 4, 7));
-            _tint.Opacity = 0;
-            root.Children.Add(_tint);
-
-            _flower = new FlowerMenu(F);
-            double half = F / 2 + 10;
-            double fx, fy;
+            double cx, cy;
             if (App.Config.ShowAtCursor)
             {
-                fx = (cursorX * k) - monX;
-                fy = (cursorY * k) - monY;
-                fx = Math.Max(half, Math.Min(monW - half, fx));
-                fy = Math.Max(half, Math.Min(monH - half, fy));
+                cx = (cursorX * k) - monX;
+                cy = (cursorY * k) - monY;
             }
             else
             {
-                fx = monW / 2; fy = monH / 2;
+                cx = monW / 2; cy = monH / 2;
             }
-            _flower.SetValue(Canvas.LeftProperty, fx - F / 2);
-            _flower.SetValue(Canvas.TopProperty, fy - F / 2);
+            cx = Math.Max(winSize / 2, Math.Min(monW - winSize / 2, cx));
+            cy = Math.Max(winSize / 2, Math.Min(monH - winSize / 2, cy));
+
+            Left = monX + cx - winSize / 2;
+            Top = monY + cy - winSize / 2;
+            Width = winSize; Height = winSize;
+
+            // remember physical bounds for the left-click catch
+            _physBounds = new Rect(
+                (monX + cx - winSize / 2) / k,
+                (monY + cy - winSize / 2) / k,
+                winSize / k, winSize / k);
+
+            _flower = new FlowerMenu(S);
+            Canvas.SetLeft(_flower, pad);
+            Canvas.SetTop(_flower, pad);
 
             var canvas = new Canvas();
             canvas.Children.Add(_flower);
-            root.Children.Add(canvas);
-            Content = root;
+            canvas.Background = Brushes.Transparent;
+            Content = canvas;
 
-            _flower.PetalActivated += delegate(int i)
+            _flower.PetalActivated += delegate (int i)
             {
-                var p = App.Config.Petals[i];
-                ActionEngine.Run(p);
-                SafeClose();
+                Sounds.Play("click");
+                ActionEngine.Run(App.Config.Petals[i]);
+                if (App.Config.CloseAfterAction) SafeClose();
+                else _flower.ReleasePulseAt(i);
             };
             _flower.CenterActivated += delegate
             {
@@ -100,7 +104,7 @@ namespace Hinoki
                 App.OpenSettings();
             };
 
-            // click on the empty glass closes the menu
+            // click on empty glass inside the window closes it
             MouseLeftButtonDown += delegate { SafeClose(); };
             MouseRightButtonDown += delegate { SafeClose(); };
 
@@ -108,29 +112,33 @@ namespace Hinoki
             KeyboardHook.Install();
             KeyboardHook.EscPressed += OnEsc;
 
-            Log(string.Format("OPEN cursor=({0},{1}) mon=({2}x{3}) dpi={4} flower=({5:0}x{6:0}) at ({7:0},{8:0})",
-                cursorX, cursorY, (int)monW, (int)monH, (int)dpi, F, F, fx + monX, fy + monY));
+            Log(string.Format("OPEN cursor=({0},{1}) mon=({2}x{3}) dpi={4} flower={5:0} win=({6:0},{7:0},{8:0},{9:0})",
+                cursorX, cursorY, (int)monW, (int)monH, (int)dpi, S, Left, Top, Width, Height));
 
             Show();
-            var fade = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(170)));
-            fade.EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut };
-            _tint.BeginAnimation(OpacityProperty, fade);
+            Sounds.Play("open");
             _flower.PlayIn();
         }
 
         void OnEsc()
         {
-            Log("ESC");
             Dispatcher.BeginInvoke(new Action(delegate { SafeClose(); }));
+        }
+
+        /// <summary>Is this physical point inside the open overlay window?</summary>
+        public static bool ContainsPhysicalPoint(int px, int py)
+        {
+            return Current != null && _physBounds.Contains(px, py);
         }
 
         public void SafeClose()
         {
-            if (Current != this || Current == null) return;
-            Log("CLOSE");
+            if (Current != this || _closing) return;
+            _closing = true;
             Current = null;
             KeyboardHook.EscPressed -= OnEsc;
             KeyboardHook.Uninstall();
+            Sounds.Play("close");
             if (_flower != null) _flower.PlayOut(delegate { Close(); });
             else Close();
         }
@@ -139,8 +147,8 @@ namespace Hinoki
         {
             base.OnSourceInitialized(e);
             var hwnd = new WindowInteropHelper(this).Handle;
-            if (App.Config.BlurBackground)
-                Native.ApplyAcrylic(hwnd, 0xBE, 0x0D, 0x0E, 0x12);
+            int pref = Native.DWMWCP_ROUND;
+            Native.DwmSetWindowAttribute(hwnd, Native.DWMWA_WINDOW_CORNER_PREFERENCE, ref pref, sizeof(int));
         }
     }
 }

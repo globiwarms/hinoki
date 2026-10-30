@@ -2,6 +2,7 @@
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Drawing.Drawing2D;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -29,10 +30,31 @@ namespace Hinoki
                 case "discord_mute": SendToDiscord(App.Config.DiscordMuteKeys, "Мут микрофона"); break;
                 case "discord_deafen": SendToDiscord(App.Config.DiscordDeafenKeys, "Мут звука"); break;
                 case "volume_mute": TapKey(0xAD); break;            // VK_VOLUME_MUTE
+                case "volume_up": TapKey(0xAF); break;
+                case "volume_down": TapKey(0xAE); break;
                 case "media": TapKey(0xB3); break;                  // VK_MEDIA_PLAY_PAUSE
+                case "media_next": TapKey(0xB0); break;
+                case "media_prev": TapKey(0xB1); break;
                 case "app": LaunchApp(p); break;
                 case "url": OpenUrl(p); break;
                 case "hotkey": PressCombo(p.Target); break;
+                case "screenshot_file": ScreenshotToFile(); break;
+                case "screenshot_buffer": PressCombo("Win+Shift+S"); break;
+                case "show_desktop": PressCombo("Win+D"); break;
+                case "minimize_window": MinimizeActive(); break;
+                case "topmost_window": ToggleTopmost(); break;
+                case "lock_pc": Native.LockWorkStation(); break;
+                case "sleep_pc": Native.SetSuspendState(false, false, false); break;
+                case "restart_pc": Shell("shutdown", "/r /t 0"); break;
+                case "shutdown_pc": Shell("shutdown", "/s /t 0"); break;
+                case "task_manager": Shell("taskmgr", ""); break;
+                case "windows_settings": OpenLink("ms-settings:"); break;
+                case "calculator": Shell("calc", ""); break;
+                case "emoji_panel": PressCombo("Win+."); break;
+                case "paste_clipboard": PressCombo("Ctrl+V"); break;
+                case "open_steam": OpenLink("steam://open/games"); break;
+                case "open_config": OpenLink(AppConfig.Dir); break;
+                case "open_settings": RunOnUi(delegate { App.OpenSettings(); }); break;
             }
         }
 
@@ -114,6 +136,62 @@ namespace Hinoki
             if (prev != IntPtr.Zero && prev != hwnd) Native.SetForegroundWindow(prev);
         }
 
+        // ---- extra actions ----
+
+        static void Shell(string exe, string args)
+        {
+            var psi = new ProcessStartInfo();
+            psi.FileName = exe;
+            psi.Arguments = args;
+            psi.UseShellExecute = true;
+            Process.Start(psi);
+        }
+
+        static void RunOnUi(Action a)
+        {
+            var d = Application.Current != null ? Application.Current.Dispatcher : null;
+            if (d != null) d.BeginInvoke(a);
+            else a();
+        }
+
+        static void ScreenshotToFile()
+        {
+            try
+            {
+                var bounds = System.Windows.Forms.SystemInformation.VirtualScreen;
+                using (var bmp = new System.Drawing.Bitmap(bounds.Width, bounds.Height))
+                {
+                    using (var g = System.Drawing.Graphics.FromImage(bmp))
+                        g.CopyFromScreen(bounds.X, bounds.Y, 0, 0, bmp.Size);
+                    string dir = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
+                    string file = System.IO.Path.Combine(dir, "Hinoki_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".png");
+                    bmp.Save(file, System.Drawing.Imaging.ImageFormat.Png);
+                    Report("Hinoki", "Скриншот сохранён: " + file);
+                }
+            }
+            catch (Exception ex) { Report("Hinoki", "Скриншот не получился: " + ex.Message); }
+        }
+
+        static void MinimizeActive()
+        {
+            IntPtr fg = Native.GetForegroundWindow();
+            if (fg != IntPtr.Zero) Native.ShowWindow(fg, 6); // SW_MINIMIZE
+        }
+
+        static void ToggleTopmost()
+        {
+            IntPtr fg = Native.GetForegroundWindow();
+            if (fg == IntPtr.Zero) return;
+            var now = new System.Collections.Generic.List<byte[]>();
+            uint style = GetWindowLong(fg, -20); // GWL_EXSTYLE
+            bool isTopmost = (style & 0x8) != 0; // WS_EX_TOPMOST
+            Native.SetWindowPos(fg, isTopmost ? Native.HWND_NOTOPMOST : Native.HWND_TOPMOST,
+                0, 0, 0, 0, Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE);
+        }
+
+        [DllImport("user32.dll")]
+        static extern uint GetWindowLong(IntPtr hWnd, int nIndex);
+
         // ---- keystrokes ----
 
         public static void TapKey(ushort vk)
@@ -125,6 +203,24 @@ namespace Hinoki
             input[1].u.ki.wVk = vk;
             input[1].u.ki.dwFlags = Native.KEYEVENTF_KEYUP;
             Native.SendInput(2, input, Marshal.SizeOf(typeof(Native.INPUT)));
+        }
+
+        /// <summary>Parse "Ctrl+Shift+M" into Win32 RegisterHotKey parts.</summary>
+        public static bool ParseHotkeyParts(string combo, out uint mods, out uint vk)
+        {
+            mods = 0; vk = 0;
+            if (string.IsNullOrWhiteSpace(combo)) return false;
+            string[] parts = combo.Split('+');
+            foreach (string raw in parts)
+            {
+                string t = raw.Trim().ToLowerInvariant();
+                if (t == "ctrl" || t == "control") mods |= 0x2;
+                else if (t == "shift") mods |= 0x4;
+                else if (t == "alt") mods |= 0x1;
+                else if (t == "win" || t == "meta") mods |= 0x8;
+                else vk = VkFromName(t);
+            }
+            return mods != 0 && vk != 0;
         }
 
         /// <summary>Parse "Ctrl+Shift+M" style combos and press them.</summary>
@@ -167,7 +263,7 @@ namespace Hinoki
             Native.SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(Native.INPUT)));
         }
 
-        static ushort VkFromName(string s)
+        public static ushort VkFromName(string s)
         {
             if (s.Length == 1)
             {

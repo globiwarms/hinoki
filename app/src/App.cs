@@ -74,6 +74,8 @@ namespace Hinoki
                     MouseHook.Intercept = Config.InterceptClick;
                     MouseHook.Install();
                     MouseHook.MiddleDown += OnMiddleDown;
+                    MouseHook.LeftDown += OnLeftDown;
+                    SetupGlobalHotkey();
 
                     // tray lives on the dispatcher thread
                     Tray.Init();
@@ -154,6 +156,15 @@ namespace Hinoki
                     {
                         var ov = new OverlayWindow();
                         ov.Open(960, 540);
+                        // dark backdrop so glow effects rasterize cleanly into the PNG
+                        var panel = (System.Windows.Controls.Canvas)ov.Content;
+                        var backdrop = new System.Windows.Shapes.Rectangle();
+                        backdrop.Width = ov.ActualWidth > 0 ? ov.ActualWidth : 900;
+                        backdrop.Height = ov.ActualHeight > 0 ? ov.ActualHeight : 900;
+                        backdrop.Fill = new RadialGradientBrush(
+                            Color.FromArgb(120, 8, 9, 12), Color.FromArgb(190, 5, 5, 8));
+                        backdrop.IsHitTestVisible = false;
+                        panel.Children.Insert(0, backdrop);
                         target = ov;
                         file = "overlay.png";
                     }
@@ -197,6 +208,63 @@ namespace Hinoki
                     ExitApp();
                 }
             }), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        }
+
+        // clicking anywhere outside the open overlay dismisses it (the click itself passes through)
+        static void OnLeftDown(int x, int y)
+        {
+            try
+            {
+                if (OverlayWindow.Current != null && !OverlayWindow.ContainsPhysicalPoint(x, y))
+                    OverlayWindow.Current.SafeClose();
+            }
+            catch { }
+        }
+
+        // ---- global hotkey to summon the menu ----
+        static System.Windows.Interop.HwndSource _hotkeySrc;
+        const int WM_HOTKEY = 0x0312;
+        const int HOTKEY_ID = 0xB1F0;
+
+        static void SetupGlobalHotkey()
+        {
+            try
+            {
+                _hotkeySrc = new System.Windows.Interop.HwndSource(0, 0, 0, 0, 0, "HinokiHotkeys", new IntPtr(-3));
+                _hotkeySrc.AddHook(WndProc);
+                ApplyGlobalHotkey();
+            }
+            catch { }
+        }
+
+        static IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            if (msg == WM_HOTKEY && wParam.ToInt32() == HOTKEY_ID)
+            {
+                _app.Dispatcher.BeginInvoke(new Action(delegate
+                {
+                    if (OverlayWindow.Current != null) { OverlayWindow.Current.SafeClose(); return; }
+                    var p = WF.Cursor.Position;
+                    OnMiddleDown(p.X, p.Y);
+                }));
+                handled = true;
+            }
+            return IntPtr.Zero;
+        }
+
+        public static void ApplyGlobalHotkey()
+        {
+            try
+            {
+                Native.UnregisterHotKey(_hotkeySrc != null ? _hotkeySrc.Handle : IntPtr.Zero, HOTKEY_ID);
+                uint mods, vk;
+                if (_hotkeySrc != null && Config != null &&
+                    ActionEngine.ParseHotkeyParts(Config.GlobalHotkey, out mods, out vk))
+                {
+                    Native.RegisterHotKey(_hotkeySrc.Handle, HOTKEY_ID, mods | 0x4000, vk); // MOD_NOREPEAT
+                }
+            }
+            catch { }
         }
 
         static void OnMiddleDown(int x, int y)
