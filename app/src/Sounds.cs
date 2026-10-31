@@ -63,6 +63,9 @@ namespace Hinoki
                 case "shutter":
                     tones = new List<double[]> { new double[] { 1568, 0.04, 0.6 }, new double[] { 2093, 0.05, 0.5 } };
                     break;
+                case "confirm":
+                    tones = new List<double[]> { new double[] { 392, 0.09, 0.45 }, new double[] { 587, 0.11, 0.45 }, new double[] { 784, 0.1, 0.4 } };
+                    break;
                 case "error":
                     tones = new List<double[]> { new double[] { 220, 0.16, 0.55 } };
                     break;

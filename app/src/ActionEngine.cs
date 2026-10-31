@@ -79,6 +79,17 @@ namespace Hinoki
                     if (fg != IntPtr.Zero) Native.SendMessageW(fg, 0x0010, IntPtr.Zero, IntPtr.Zero); // WM_CLOSE
                     break;
                 }
+                case "paste_plain": PressCombo("Ctrl+Shift+V"); break;
+                case "clear_clipboard":
+                {
+                    RunOnUi(delegate
+                    {
+                        try { System.Windows.Clipboard.Clear(); } catch { }
+                    });
+                    Toast.Show("Буфер очищен", "Содержимое буфера обмена удалено", "eraser");
+                    break;
+                }
+                case "restart_explorer": Shell("taskkill", "/f /im explorer.exe & start explorer.exe"); break;
                 case "open_steam": OpenLink("steam://open/games"); break;
                 case "open_config": OpenLink(AppConfig.Dir); break;
                 case "open_downloads": Shell("explorer.exe", "shell:Downloads"); break;
@@ -179,6 +190,7 @@ namespace Hinoki
                 if (d != null)
                     d.Invoke(new Action(delegate
                     {
+                        Sounds.Play("confirm");
                         approved = GlassConfirm.Show(title, question, verb, icon, true);
                     }));
             }

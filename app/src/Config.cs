@@ -339,7 +339,7 @@ namespace Hinoki
             "open_downloads", "open_desktop", "open_documents",
             "copy", "monitor_off", "clear_recycle_bin", "open_discord", "open_spotify",
             "search_start", "notification_center",
-            "mute_all", "close_window"
+            "mute_all", "close_window", "paste_plain", "clear_clipboard", "restart_explorer"
         };
 
         public static readonly string[] Names = new string[]
@@ -384,7 +384,10 @@ namespace Hinoki
             "Поиск Windows",
             "Центр уведомлений",
             "Тихий режим (микро + звук)",
-            "Закрыть активное окно"
+            "Закрыть активное окно",
+            "Вставить как обычный текст",
+            "Очистить буфер обмена",
+            "Перезапустить Проводник"
         };
 
         public static string NameOf(string key)

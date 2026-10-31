@@ -336,6 +336,7 @@ namespace Hinoki
         Border _centerCircle;
         StackPanel _centerGroup;
         double _size;
+        RotateTransform _gearRotate;
 
         public FlowerMenu(double size)
         {
@@ -427,13 +428,18 @@ namespace Hinoki
             gearCanvas.Width = 24; gearCanvas.Height = 24;
             var gearPath = new System.Windows.Shapes.Path();
             gearPath.Data = Lucide.Get("settings");
+            gearPath.Stretch = Stretch.Uniform;
+            gearPath.Width = 24; gearPath.Height = 24;
             gearPath.Stroke = Ui.Solid(Colors.White, 0.97);
             gearPath.StrokeThickness = 1.6;
             gearPath.StrokeLineJoin = PenLineJoin.Round;
             gearPath.StrokeStartLineCap = PenLineCap.Round;
             gearPath.StrokeEndLineCap = PenLineCap.Round;
+            var gearRot = new RotateTransform(0);
+            gearPath.RenderTransform = gearRot;
             gearCanvas.Children.Add(gearPath);
             gearHost.Child = gearCanvas;
+            _gearRotate = gearRot;
             _centerCircle.Child = gearHost;
 
             _centerGroup.Children.Add(_centerCircle);
@@ -445,12 +451,24 @@ namespace Hinoki
                 AnimateScale(cst, 1.04, 240);
                 cg.BeginAnimation(DropShadowEffect.OpacityProperty,
                     new DoubleAnimation(0.7, new Duration(TimeSpan.FromMilliseconds(240))));
+                if (_gearRotate != null)
+                {
+                    var spin = new DoubleAnimation(45, new Duration(TimeSpan.FromMilliseconds(420)));
+                    spin.EasingFunction = new BackEase { Amplitude = 0.4, EasingMode = EasingMode.EaseOut };
+                    _gearRotate.BeginAnimation(RotateTransform.AngleProperty, spin);
+                }
             };
             _centerGroup.MouseLeave += delegate
             {
                 AnimateScale(cst, 1, 240);
                 cg.BeginAnimation(DropShadowEffect.OpacityProperty,
                     new DoubleAnimation(0.18 + 0.5 * (cfg.GlowStrength / 100.0), new Duration(TimeSpan.FromMilliseconds(240))));
+                if (_gearRotate != null)
+                {
+                    var spin = new DoubleAnimation(0, new Duration(TimeSpan.FromMilliseconds(420)));
+                    spin.EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut };
+                    _gearRotate.BeginAnimation(RotateTransform.AngleProperty, spin);
+                }
             };
             _centerGroup.MouseLeftButtonDown += delegate
             {
@@ -530,9 +548,12 @@ namespace Hinoki
             if (instant)
             {
                 Opacity = 1;
-                var cstI = (ScaleTransform)_centerGroup.RenderTransform;
-                cstI.ScaleX = 1; cstI.ScaleY = 1;
-                _centerGroup.Opacity = 1;
+                if (_centerGroup != null)
+                {
+                    var cstI = (ScaleTransform)_centerGroup.RenderTransform;
+                    cstI.ScaleX = 1; cstI.ScaleY = 1;
+                    _centerGroup.Opacity = 1;
+                }
                 return;
             }
 

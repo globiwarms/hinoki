@@ -58,6 +58,7 @@ namespace Hinoki
         WrapPanel _iconPanel;
         bool _expandedIcons;
         string _expandLabel = "";
+        System.Windows.Threading.DispatcherTimer _rebuildDebounce;
         TextBlock _pageTitle;
         TextBlock _pageSub;
         string _page = "petals";
@@ -226,7 +227,7 @@ namespace Hinoki
             bn.VerticalAlignment = VerticalAlignment.Center;
             bn.Margin = new Thickness(10, 0, 0, 0);
             bn.Children.Add(Glass.Label("Hinoki", 15.5, false, true));
-            bn.Children.Add(Glass.Label("v2.5.0", 10, true));
+            bn.Children.Add(Glass.Label("v2.6.0", 10, true));
             brand.Children.Add(bn);
             Grid.SetRow(brand, 0);
             rail.Children.Add(brand);
@@ -485,6 +486,22 @@ namespace Hinoki
             sv.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
             sv.Content = content;
             return sv;
+        }
+
+        void DebouncedRebuild()
+        {
+            if (_rebuildDebounce == null)
+            {
+                _rebuildDebounce = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(90) };
+                _rebuildDebounce.Tick += delegate
+                {
+                    _rebuildDebounce.Stop();
+                    _preview.Rebuild();
+                    _preview.SetSelected(_selPetal);
+                };
+            }
+            _rebuildDebounce.Stop();
+            _rebuildDebounce.Start();
         }
 
         public void Pulse()
@@ -977,7 +994,7 @@ namespace Hinoki
                 App.Config.PetalOpacity = (int)Math.Round(opSlider.Value);
                 opVal.Text = App.Config.PetalOpacity + "%";
                 App.SaveConfig();
-                _preview.Rebuild();
+                DebouncedRebuild();
                 Pulse();
             };
             stack.Children.Add(Setting("Прозрачность лепестков", null, AttachSlider(opSlider, opVal)));
@@ -990,7 +1007,7 @@ namespace Hinoki
                 App.Config.GlowStrength = (int)Math.Round(glowSlider.Value);
                 glowVal.Text = App.Config.GlowStrength + "%";
                 App.SaveConfig();
-                _preview.Rebuild();
+                DebouncedRebuild();
                 Pulse();
             };
             stack.Children.Add(Setting("Сила свечения", null, AttachSlider(glowSlider, glowVal)));
@@ -1003,7 +1020,7 @@ namespace Hinoki
                 App.Config.CenterOpacity = (int)Math.Round(cSlider.Value);
                 cVal.Text = App.Config.CenterOpacity + "%";
                 App.SaveConfig();
-                _preview.Rebuild();
+                DebouncedRebuild();
                 Pulse();
             };
             stack.Children.Add(Setting("Прозрачность центра", null, AttachSlider(cSlider, cVal)));
@@ -1015,7 +1032,7 @@ namespace Hinoki
                 App.Config.PetalRoundness = (int)Math.Round(rSlider.Value);
                 rVal.Text = App.Config.PetalRoundness + "%";
                 App.SaveConfig();
-                _preview.Rebuild();
+                DebouncedRebuild();
                 Pulse();
             };
             stack.Children.Add(Setting("Скругление лепестков", null, AttachSlider(rSlider, rVal)));
@@ -1317,7 +1334,7 @@ namespace Hinoki
             name.Margin = new Thickness(0, 14, 0, 0);
             stack.Children.Add(name);
 
-            var ver = Glass.Label("Версия 2.5.0 · Windows 10/11", 12, true);
+            var ver = Glass.Label("Версия 2.6.0 · Windows 10/11", 12, true);
             ver.HorizontalAlignment = HorizontalAlignment.Center;
             ver.Margin = new Thickness(0, 3, 0, 0);
             stack.Children.Add(ver);
