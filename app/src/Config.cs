@@ -53,6 +53,10 @@ namespace Hinoki
         public int AnimSpeed { get; set; }         // 50..200 (%)
         public string EntranceStyle { get; set; }  // spring | smooth | instant
         public int AutoCloseSeconds { get; set; }  // 0 = off
+        public bool DeepSettingsTheme { get; set; }   // darker settings background
+        public bool ShowCenterButton { get; set; }    // gear in the middle of the flower
+        public bool ShowNotifications { get; set; }   // balloons for actions
+        public bool OpenShotFolder { get; set; }      // open explorer after screenshot
         public bool BlurBackground { get; set; }   // glass blur inside settings window
         public bool LightGlass { get; set; }       // light glass theme for petals
 
@@ -210,7 +214,7 @@ namespace Hinoki
         public static AppConfig Defaults()
         {
             var c = new AppConfig();
-            c.Version = 6;
+            c.Version = 7;
             c.InterceptClick = true;
             c.ShowAtCursor = true;
             c.CloseAfterAction = true;
@@ -230,6 +234,10 @@ namespace Hinoki
             c.AnimSpeed = 100;
             c.EntranceStyle = "spring";
             c.AutoCloseSeconds = 0;
+            c.DeepSettingsTheme = false;
+            c.ShowCenterButton = true;
+            c.ShowNotifications = true;
+            c.OpenShotFolder = false;
             c.BlurBackground = true;
             c.LightGlass = false;
             c.SoundEnabled = true;

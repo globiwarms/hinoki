@@ -59,6 +59,7 @@ namespace Hinoki
         bool _expandedIcons;
         string _expandLabel = "";
         TextBlock _pageTitle;
+        TextBlock _pageSub;
         string _page = "petals";
         bool _suppressPulse;
 
@@ -161,6 +162,29 @@ namespace Hinoki
             };
         }
 
+        Brush MakeChromeFill()
+        {
+            var cfgApp = App.Config;
+            bool deep = cfgApp != null && cfgApp.DeepSettingsTheme;
+            var g = new LinearGradientBrush();
+            g.StartPoint = new Point(0, 0);
+            g.EndPoint = new Point(0.7, 1);
+            if (deep)
+            {
+                g.GradientStops.Add(new GradientStop(Color.FromRgb(0x0C, 0x0D, 0x10), 0));
+                g.GradientStops.Add(new GradientStop(Color.FromRgb(0x09, 0x0A, 0x0D), 0.55));
+                g.GradientStops.Add(new GradientStop(Color.FromRgb(0x06, 0x07, 0x09), 1));
+            }
+            else
+            {
+                g.GradientStops.Add(new GradientStop(Color.FromRgb(0x1A, 0x1C, 0x22), 0));
+                g.GradientStops.Add(new GradientStop(Color.FromRgb(0x12, 0x13, 0x18), 0.55));
+                g.GradientStops.Add(new GradientStop(Color.FromRgb(0x0E, 0x0F, 0x13), 1));
+            }
+            g.Freeze();
+            return g;
+        }
+
         void Entrance()
         {
             if (!App.Config.AnimationsEnabled) { Opacity = 1; return; }
@@ -203,7 +227,7 @@ namespace Hinoki
             bn.VerticalAlignment = VerticalAlignment.Center;
             bn.Margin = new Thickness(10, 0, 0, 0);
             bn.Children.Add(Glass.Label("Hinoki", 15.5, false, true));
-            bn.Children.Add(Glass.Label("v2.1.0", 10, true));
+            bn.Children.Add(Glass.Label("v2.1.1", 10, true));
             brand.Children.Add(bn);
             Grid.SetRow(brand, 0);
             rail.Children.Add(brand);
@@ -286,6 +310,7 @@ namespace Hinoki
                 pathEl.Stroke = active ? Ui.Solid(Ui.Accent, 1) : Ui.Solid(Ui.InkDim, 1);
             }
             if (_pageTitle != null) _pageTitle.Text = PageTitle(key);
+            if (_pageSub != null) _pageSub.Text = PageSub(key);
             FrameworkElement page;
             if (!_pages.TryGetValue(key, out page))
             {
@@ -324,8 +349,13 @@ namespace Hinoki
 
             var head = new Grid();
             head.Margin = new Thickness(4, 0, 0, 14);
+            var headStack = new StackPanel();
             _pageTitle = Glass.Label(PageTitle("petals"), 22, false, true);
-            head.Children.Add(_pageTitle);
+            headStack.Children.Add(_pageTitle);
+            _pageSub = Glass.Label(PageSub("petals"), 12, true);
+            _pageSub.Margin = new Thickness(1, 4, 0, 0);
+            headStack.Children.Add(_pageSub);
+            head.Children.Add(headStack);
 
             // close button — top right, always visible
             var close = MakeCloseButton();
@@ -343,6 +373,18 @@ namespace Hinoki
             Grid.SetRow(_pageHost, 1);
             col.Children.Add(_pageHost);
             return col;
+        }
+
+        string PageSub(string key)
+        {
+            switch (key)
+            {
+                case "look": return "Цвет, стекло и плавность";
+                case "sounds": return "Мягкие стеклянные звуки";
+                case "behavior": return "Как ведёт себя цветок";
+                case "about": return "檜 сделано с любовью";
+                default: return "Назначь действия каждому лепестку";
+            }
         }
 
         string PageTitle(string key)
@@ -555,7 +597,7 @@ namespace Hinoki
             var btnRow = new StackPanel();
             btnRow.Orientation = Orientation.Horizontal;
             btnRow.Margin = new Thickness(0, 8, 0, 0);
-            var add = new PillButton("+ Лепесток", false);
+            var add = new PillButton("+ Лепесток", true);
             add.Clicked += delegate
             {
                 if (App.Config.Petals.Count >= 8) return;
@@ -1011,6 +1053,17 @@ namespace Hinoki
 
             stack.Children.Add(Section("Стекло"));
 
+            var tgDeep = new GlassToggle(cfgApp.DeepSettingsTheme);
+            tgDeep.Changed += delegate
+            {
+                App.Config.DeepSettingsTheme = tgDeep.IsOn;
+                App.SaveConfig();
+                _chrome.Background = MakeChromeFill();
+                Pulse();
+            };
+            stack.Children.Add(Setting("Глубокая тема настроек", "Ещё более тёмный фон этого окна", tgDeep));
+            stack.Children.Add(Sep());
+
             var tgLight = new GlassToggle(cfgApp.LightGlass);
             tgLight.Changed += delegate { App.Config.LightGlass = tgLight.IsOn; App.SaveConfig(); _preview.Rebuild(); Pulse(); };
             stack.Children.Add(Setting("Светлое стекло", "Белые лепестки с тёмными иконками", tgLight));
@@ -1018,7 +1071,12 @@ namespace Hinoki
 
             var tgLabels = new GlassToggle(cfgApp.ShowLabels);
             tgLabels.Changed += delegate { App.Config.ShowLabels = tgLabels.IsOn; App.SaveConfig(); _preview.Rebuild(); Pulse(); };
-            stack.Children.Add(Setting("Показывать названия", "Подписи на лепестках и под кнопкой настроек", tgLabels));
+            stack.Children.Add(Setting("Показывать названия", "Подписи на лепестках", tgLabels));
+            stack.Children.Add(Sep());
+
+            var tgCenter = new GlassToggle(cfgApp.ShowCenterButton);
+            tgCenter.Changed += delegate { App.Config.ShowCenterButton = tgCenter.IsOn; App.SaveConfig(); _preview.Rebuild(); Pulse(); };
+            stack.Children.Add(Setting("Шестерёнка в центре", "Кнопка настроек в середине цветка", tgCenter));
             stack.Children.Add(Sep());
 
             return WrapPage("Внешний вид", stack);
@@ -1172,6 +1230,16 @@ namespace Hinoki
             var tgAnim = new GlassToggle(cfgApp.AnimationsEnabled);
             tgAnim.Changed += delegate { App.Config.AnimationsEnabled = tgAnim.IsOn; App.SaveConfig(); Pulse(); };
             stack.Children.Add(Setting("Анимации", "Пружинное раскрытие и плавные переходы", tgAnim));
+            stack.Children.Add(Sep());
+
+            var tgNotif = new GlassToggle(cfgApp.ShowNotifications);
+            tgNotif.Changed += delegate { App.Config.ShowNotifications = tgNotif.IsOn; App.SaveConfig(); Pulse(); };
+            stack.Children.Add(Setting("Уведомления о действиях", "Всплывающие подсказки у часов (скриншоты, ошибки)", tgNotif));
+            stack.Children.Add(Sep());
+
+            var tgShot = new GlassToggle(cfgApp.OpenShotFolder);
+            tgShot.Changed += delegate { App.Config.OpenShotFolder = tgShot.IsOn; App.SaveConfig(); Pulse(); };
+            stack.Children.Add(Setting("Папка после скриншота", "Открывать «Изображения» сразу после снимка", tgShot));
 
             stack.Children.Add(Section("Сочетания клавиш"));
 
@@ -1235,7 +1303,7 @@ namespace Hinoki
             name.Margin = new Thickness(0, 14, 0, 0);
             stack.Children.Add(name);
 
-            var ver = Glass.Label("Версия 2.1.0 · Windows 10/11", 12, true);
+            var ver = Glass.Label("Версия 2.1.1 · Windows 10/11", 12, true);
             ver.HorizontalAlignment = HorizontalAlignment.Center;
             ver.Margin = new Thickness(0, 3, 0, 0);
             stack.Children.Add(ver);

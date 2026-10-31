@@ -197,6 +197,12 @@ namespace Hinoki
                     string file = System.IO.Path.Combine(dir, "Hinoki_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".png");
                     bmp.Save(file, System.Drawing.Imaging.ImageFormat.Png);
                     Report("Hinoki", "Скриншот сохранён: " + file);
+                    if (App.Config != null && App.Config.OpenShotFolder)
+                    {
+                        var psi = new ProcessStartInfo("explorer.exe", "/select,\"" + file + "\"");
+                        psi.UseShellExecute = true;
+                        Process.Start(psi);
+                    }
                 }
             }
             catch (Exception ex) { Report("Hinoki", "Скриншот не получился: " + ex.Message); }
@@ -334,6 +340,7 @@ namespace Hinoki
 
         static void Report(string title, string text)
         {
+            if (App.Config != null && !App.Config.ShowNotifications) return;
             var d = Application.Current != null ? Application.Current.Dispatcher : null;
             if (d != null)
                 d.BeginInvoke(new Action(delegate { Tray.Balloon(title, text); }));

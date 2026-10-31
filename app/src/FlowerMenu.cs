@@ -363,6 +363,11 @@ namespace Hinoki
             }
 
             // ---- center: glass settings button ----
+            if (!cfg.ShowCenterButton)
+            {
+                return; // petals only
+            }
+
             _centerGroup = new StackPanel();
             _centerGroup.HorizontalAlignment = HorizontalAlignment.Center;
             _centerGroup.VerticalAlignment = VerticalAlignment.Top;
