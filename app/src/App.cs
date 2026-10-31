@@ -76,6 +76,8 @@ namespace Hinoki
                     MouseHook.MiddleDown += OnMiddleDown;
                     MouseHook.LeftDown += OnLeftDown;
                     SetupGlobalHotkey();
+                    _app.Dispatcher.BeginInvoke(new Action(delegate { ApplyPetalHotkeys(); }),
+                        System.Windows.Threading.DispatcherPriority.ApplicationIdle);
 
                     // tray lives on the dispatcher thread
                     Tray.Init();
@@ -253,6 +255,25 @@ namespace Hinoki
             return IntPtr.Zero;
         }
 
+        const int PETAL_HOTKEY_BASE = 0xB200;
+
+        public static void ApplyPetalHotkeys()
+        {
+            try
+            {
+                if (_hotkeySrc == null || Config == null) return;
+                for (int i = 0; i < 8; i++)
+                    Native.UnregisterHotKey(_hotkeySrc.Handle, PETAL_HOTKEY_BASE + i);
+                for (int i = 0; i < Config.Petals.Count && i < 8; i++)
+                {
+                    uint mods, vk;
+                    if (ActionEngine.ParseHotkeyParts(Config.Petals[i].Hotkey, out mods, out vk))
+                        Native.RegisterHotKey(_hotkeySrc.Handle, PETAL_HOTKEY_BASE + i, mods | 0x4000, vk);
+                }
+            }
+            catch { }
+        }
+
         public static void ApplyGlobalHotkey()
         {
             try
@@ -304,6 +325,7 @@ namespace Hinoki
         public static void SaveConfig()
         {
             if (Config != null) Config.Save();
+            ApplyPetalHotkeys();
             if (Tray.HasIcon) Tray.Sync();
         }
 

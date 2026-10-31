@@ -227,7 +227,7 @@ namespace Hinoki
             bn.VerticalAlignment = VerticalAlignment.Center;
             bn.Margin = new Thickness(10, 0, 0, 0);
             bn.Children.Add(Glass.Label("Hinoki", 15.5, false, true));
-            bn.Children.Add(Glass.Label("v2.6.0", 10, true));
+            bn.Children.Add(Glass.Label("v3.0.0", 10, true));
             brand.Children.Add(bn);
             Grid.SetRow(brand, 0);
             rail.Children.Add(brand);
@@ -840,6 +840,58 @@ namespace Hinoki
                 expandBtn.Visibility = _iconSearch.Value.Length > 0 ? Visibility.Collapsed : Visibility.Visible;
             };
 
+            _editor.Children.Add(Section("Цвет лепестка"));
+            var colorRow = new WrapPanel();
+            colorRow.Margin = new Thickness(0, 2, 0, 0);
+            string[] colors = { "", "E56C5C", "E8A855", "E8D555", "7FD8BE", "5CB8E5", "7F9FE0", "B48CE0", "E08CC8", "96A182", "6B7280" };
+            foreach (var c in colors)
+            {
+                var sw = new Border();
+                sw.Width = 26; sw.Height = 26;
+                sw.CornerRadius = new CornerRadius(13);
+                sw.Margin = new Thickness(0, 0, 8, 8);
+                sw.Cursor = Cursors.Hand;
+                bool cur = (p.Color ?? "") == c;
+                if (c == "")
+                {
+                    sw.Background = Ui.GlassFill(0.3, 0.15);
+                    sw.BorderBrush = Ui.Solid(Colors.White, cur ? 0.95 : 0.2);
+                    sw.BorderThickness = new Thickness(cur ? 2.5 : 1);
+                }
+                else
+                {
+                    Color cc;
+                    Ui.TryParseHex(c, out cc);
+                    sw.Background = Ui.Solid(cc, 0.85);
+                    sw.BorderBrush = Ui.Solid(Colors.White, cur ? 0.95 : 0.1);
+                    sw.BorderThickness = new Thickness(cur ? 2.5 : 0);
+                }
+                var cCopy = c;
+                sw.MouseLeftButtonDown += delegate
+                {
+                    App.Config.Petals[_selPetal].Color = cCopy;
+                    App.SaveConfig();
+                    _preview.UpdatePetal(_selPetal);
+                    Pulse();
+                };
+                colorRow.Children.Add(sw);
+            }
+            _editor.Children.Add(colorRow);
+            _editor.Children.Add(Note("Первый вариант — прозрачное стекло как у всех. Остальные — свой цвет лепестка."));
+
+            _editor.Children.Add(Section("Горячая клавиша"));
+            var hk = new HotkeyBox(p.Hotkey ?? "");
+            hk.Margin = new Thickness(0, 2, 0, 0);
+            hk.Changed += delegate
+            {
+                App.Config.Petals[_selPetal].Hotkey = hk.Combo;
+                App.SaveConfig();
+                App.ApplyPetalHotkeys();
+                Pulse();
+            };
+            _editor.Children.Add(hk);
+            _editor.Children.Add(Note("Глобальное сочетание — нажмёте в любом месте, лепесток сработает."));
+
             _editor.Children.Add(Section("Действие"));
             var actionItems = new List<string>(Actions.Names);
             var drop = new GlassDropDown(actionItems, Math.Max(0, Array.IndexOf(Actions.Keys, p.Action)));
@@ -1334,7 +1386,7 @@ namespace Hinoki
             name.Margin = new Thickness(0, 14, 0, 0);
             stack.Children.Add(name);
 
-            var ver = Glass.Label("Версия 2.6.0 · Windows 10/11", 12, true);
+            var ver = Glass.Label("Версия 3.0.0 · Windows 10/11", 12, true);
             ver.HorizontalAlignment = HorizontalAlignment.Center;
             ver.Margin = new Thickness(0, 3, 0, 0);
             stack.Children.Add(ver);

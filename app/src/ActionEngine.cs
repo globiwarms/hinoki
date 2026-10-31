@@ -2,8 +2,6 @@
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Drawing.Drawing2D;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -27,6 +25,8 @@ namespace Hinoki
         {
             switch (p.Action)
             {
+                case "app": LaunchApp(p); break;
+                case "volume_mute": TapKey(0xAD); break;            // VK_VOLUME_MUTE
                 case "mic_toggle":
                 {
                     bool muted = Audio.IsMicMuted();
@@ -34,84 +34,57 @@ namespace Hinoki
                     if (!muted) Report("Hinoki", "Микрофон выключен");
                     break;
                 }
-                case "volume_mute": TapKey(0xAD); break;            // VK_VOLUME_MUTE
-                case "volume_up": TapKey(0xAF); break;
-                case "volume_down": TapKey(0xAE); break;
+                case "volume_down":
+                {
+                    double v = Audio.GetSystemVolume();
+                    if (v >= 0) Audio.SetSystemVolume(v - 0.25);
+                    break;
+                }
+                case "volume_up":
+                {
+                    double v = Audio.GetSystemVolume();
+                    if (v >= 0) Audio.SetSystemVolume(v + 0.25);
+                    break;
+                }
+                case "screenshot": ScreenshotToClipboard(); break;
                 case "media": TapKey(0xB3); break;                  // VK_MEDIA_PLAY_PAUSE
-                case "media_next": TapKey(0xB0); break;
-                case "media_prev": TapKey(0xB1); break;
-                case "app": LaunchApp(p); break;
-                case "url": OpenUrl(p); break;
-                case "hotkey": PressCombo(p.Target); break;
-                case "screenshot_file": ScreenshotToFile(false); break;
-                case "screenshot_window": ScreenshotToFile(true); break;
-                case "screenshot_buffer": PressCombo("Win+Shift+S"); break;
+                case "open_folder": OpenPath(p); break;
+                case "run_cmd": RunCmd(p); break;
+                case "power_menu": PowerMenuDialog(); break;
                 case "show_desktop": PressCombo("Win+D"); break;
-                case "minimize_window": MinimizeActive(); break;
-                case "topmost_window": ToggleTopmost(); break;
-                case "lock_pc": Native.LockWorkStation(); break;
-                case "sleep_pc": PowerAction("moon", "Спящий режим", "Сон", "Уйти в спящий режим?", "Спать", delegate { Native.SetSuspendState(false, false, false); }); break;
-                case "restart_pc": PowerAction("rotate-cw", "Перезагрузка", "Перезагрузить", "Перезагрузить компьютер сейчас?", "Перезагрузить", delegate { Shell("shutdown", "/r /t 0"); }); break;
-                case "shutdown_pc": PowerAction("power", "Выключение", "Выключить", "Выключить компьютер сейчас?", "Выключить", delegate { Shell("shutdown", "/s /t 0"); }); break;
-                case "task_manager": Shell("taskmgr", ""); break;
-                case "windows_settings": OpenLink("ms-settings:"); break;
-                case "calculator": Shell("calc", ""); break;
-                case "emoji_panel": PressCombo("Win+."); break;
-                case "paste_clipboard": PressCombo("Ctrl+V"); break;
-                case "copy": PressCombo("Ctrl+C"); break;
-                case "monitor_off": MonitorOff(); break;
-                case "clear_recycle_bin": Shell("powershell.exe", "-NoProfile -Command Clear-RecycleBin -Force -ErrorAction SilentlyContinue"); break;
-                case "open_discord": OpenLink("discord://"); break;
-                case "open_spotify": OpenLink("spotify:"); break;
-                case "search_start": PressCombo("Win+S"); break;
-                case "notification_center": PressCombo("Win+N"); break;
-                case "mute_all":
-                {
-                    bool micMuted = Audio.IsMicMuted();
-                    Audio.SetMicMuted(!micMuted);
-                    TapKey(0xAD); // toggle system volume
-                    if (!micMuted) Report("Hinoki", "Тихий режим: микрофон и звук выключены");
-                    break;
-                }
-                case "close_window":
-                {
-                    IntPtr fg = Native.GetForegroundWindow();
-                    if (fg != IntPtr.Zero) Native.SendMessageW(fg, 0x0010, IntPtr.Zero, IntPtr.Zero); // WM_CLOSE
-                    break;
-                }
-                case "paste_plain": PressCombo("Ctrl+Shift+V"); break;
-                case "clear_clipboard":
-                {
-                    RunOnUi(delegate
-                    {
-                        try { System.Windows.Clipboard.Clear(); } catch { }
-                    });
-                    Toast.Show("Буфер очищен", "Содержимое буфера обмена удалено", "eraser");
-                    break;
-                }
-                case "restart_explorer": Shell("taskkill", "/f /im explorer.exe & start explorer.exe"); break;
-                case "open_steam": OpenLink("steam://open/games"); break;
-                case "open_config": OpenLink(AppConfig.Dir); break;
-                case "open_downloads": Shell("explorer.exe", "shell:Downloads"); break;
-                case "open_desktop": OpenLink(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory)); break;
-                case "open_documents": OpenLink(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)); break;
-                case "open_settings": RunOnUi(delegate { App.OpenSettings(); }); break;
+                case "url": OpenUrl(p); break;
             }
         }
 
-        // ---- launchers ----
-
-        public static void OpenLink(string url)
+        static void Report(string title, string text)
         {
-            try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
-            catch { }
+            if (App.Config != null && !App.Config.ShowNotifications) return;
+            var d = Application.Current != null ? Application.Current.Dispatcher : null;
+            if (d != null)
+                d.BeginInvoke(new Action(delegate { Toast.Show(title, text); }));
+        }
+
+        static void RunOnUi(Action a)
+        {
+            var d = Application.Current != null ? Application.Current.Dispatcher : null;
+            if (d != null) d.BeginInvoke(a);
+            else a();
+        }
+
+        static void Shell(string exe, string args)
+        {
+            var psi = new ProcessStartInfo();
+            psi.FileName = exe;
+            psi.Arguments = args;
+            psi.UseShellExecute = true;
+            Process.Start(psi);
         }
 
         static void LaunchApp(PetalConfig p)
         {
             if (string.IsNullOrWhiteSpace(p.Target))
             {
-                Report("Hinoki", "Лепесток «" + p.Label + "» не настроен — укажите приложение в настройках.");
+                Report("Hinoki", "Лепесток «" + p.Label + "» не настроен — укажите приложение.");
                 return;
             }
             var psi = new ProcessStartInfo();
@@ -123,61 +96,90 @@ namespace Hinoki
 
         static void OpenUrl(PetalConfig p)
         {
-            if (string.IsNullOrWhiteSpace(p.Target)) { Report("Hinoki", "Лепесток «" + p.Label + "» не настроен — укажите ссылку."); return; }
+            if (string.IsNullOrWhiteSpace(p.Target))
+            {
+                Report("Hinoki", "Лепесток «" + p.Label + "» не настроен — укажите ссылку.");
+                return;
+            }
             string url = p.Target.Trim();
             if (!url.Contains("://")) url = "https://" + url;
             Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
         }
 
-        // ---- discord ----
-
-        static IntPtr FindDiscordWindow()
+        public static void OpenLink(string url)
         {
-            IntPtr found = IntPtr.Zero;
-            foreach (Process proc in Process.GetProcessesByName("Discord"))
-            {
-                if (proc.MainWindowHandle != IntPtr.Zero) { found = proc.MainWindowHandle; proc.Dispose(); break; }
-                proc.Dispose();
-            }
-            if (found == IntPtr.Zero)
-            {
-                foreach (Process proc in Process.GetProcessesByName("DiscordCanary"))
-                {
-                    if (proc.MainWindowHandle != IntPtr.Zero) { found = proc.MainWindowHandle; proc.Dispose(); break; }
-                    proc.Dispose();
-                }
-            }
-            if (found != IntPtr.Zero) return found;
-            // fallback: any visible window whose title mentions Discord
-            Native.EnumWindows(delegate(IntPtr hwnd, IntPtr lp)
-            {
-                if (!Native.IsWindowVisible(hwnd)) return true;
-                var sb = new StringBuilder(256);
-                Native.GetWindowText(hwnd, sb, 256);
-                string t = sb.ToString();
-                if (t.Contains("Discord") || t.Contains(" discord ")) { found = hwnd; return false; }
-                return true;
-            }, IntPtr.Zero);
-            return found;
+            try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
+            catch { }
         }
 
-        static void SendToDiscord(string combo, string what)
+        static void OpenPath(PetalConfig p)
         {
-            IntPtr hwnd = FindDiscordWindow();
-            if (hwnd == IntPtr.Zero)
+            if (string.IsNullOrWhiteSpace(p.Target))
             {
-                Report("Hinoki", "Discord не запущен.");
+                Report("Hinoki", "Лепесток «" + p.Label + "» не настроен — укажите путь к папке.");
                 return;
             }
-            IntPtr prev = Native.GetForegroundWindow();
-            Native.ForceForeground(hwnd);
-            System.Threading.Thread.Sleep(160);
-            PressCombo(combo);
-            System.Threading.Thread.Sleep(90);
-            if (prev != IntPtr.Zero && prev != hwnd) Native.SetForegroundWindow(prev);
+            string path = Environment.ExpandEnvironmentVariables(p.Target.Trim());
+            if (!System.IO.Directory.Exists(path) && !System.IO.File.Exists(path))
+            {
+                Report("Hinoki", "Путь не найден: " + path);
+                return;
+            }
+            OpenLink(path);
         }
 
-        // ---- extra actions ----
+        static void RunCmd(PetalConfig p)
+        {
+            if (string.IsNullOrWhiteSpace(p.Target))
+            {
+                Report("Hinoki", "Лепесток «" + p.Label + "» не настроен — укажите команду.");
+                return;
+            }
+            string cmd = Environment.ExpandEnvironmentVariables(p.Target.Trim());
+            var psi = new ProcessStartInfo("cmd.exe", "/c " + cmd);
+            psi.UseShellExecute = false;
+            psi.CreateNoWindow = true;
+            Process.Start(psi);
+        }
+
+        static void ScreenshotToClipboard()
+        {
+            try
+            {
+                var bounds = System.Windows.Forms.SystemInformation.VirtualScreen;
+                using (var bmp = new System.Drawing.Bitmap(bounds.Width, bounds.Height))
+                {
+                    using (var g = System.Drawing.Graphics.FromImage(bmp))
+                        g.CopyFromScreen(bounds.X, bounds.Y, 0, 0, bmp.Size);
+                    Sounds.Play("shutter");
+                    RunOnUi(delegate
+                    {
+                        try
+                        {
+                            var source = System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                                bmp.GetHbitmap(), IntPtr.Zero, System.Windows.Int32Rect.Empty,
+                                System.Windows.Media.Imaging.BitmapSizeOptions.FromEmptyOptions());
+                            source.Freeze();
+                            System.Windows.Clipboard.SetImage(source);
+                        }
+                        catch { }
+                    });
+                    Toast.Show("Скриншот в буфере", "Вставьте через Ctrl+V", "camera");
+                }
+            }
+            catch (Exception ex) { Report("Hinoki", "Скриншот не получился: " + ex.Message); }
+        }
+
+        static void PowerMenuDialog()
+        {
+            RunOnUi(delegate
+            {
+                string choice = PowerMenu.Show();
+                if (choice == "sleep") Native.SetSuspendState(false, false, false);
+                else if (choice == "restart") Shell("shutdown", "/r /t 0");
+                else if (choice == "shutdown") Shell("shutdown", "/s /t 0");
+            });
+        }
 
         /// <summary>Power actions run on a worker thread — marshal the confirm dialog to the UI thread.</summary>
         static void PowerAction(string icon, string title, string confirmLabel, string question, string verb, Action act)
@@ -195,88 +197,13 @@ namespace Hinoki
                     }));
             }
             if (approved) act();
-            else Report("Hinoki", "Отменено");
-        }
-
-        static void Shell(string exe, string args)
-        {
-            var psi = new ProcessStartInfo();
-            psi.FileName = exe;
-            psi.Arguments = args;
-            psi.UseShellExecute = true;
-            Process.Start(psi);
-        }
-
-        static void RunOnUi(Action a)
-        {
-            var d = Application.Current != null ? Application.Current.Dispatcher : null;
-            if (d != null) d.BeginInvoke(a);
-            else a();
-        }
-
-        static void ScreenshotToFile(bool activeWindowOnly)
-        {
-            try
-            {
-                int x, y, w, h;
-                if (activeWindowOnly)
-                {
-                    IntPtr fg = Native.GetForegroundWindow();
-                    if (fg == IntPtr.Zero) { Report("Hinoki", "Нет активного окна."); return; }
-                    Native.RECT r;
-                    if (!Native.GetWindowRect(fg, out r)) { Report("Hinoki", "Не удалось измерить окно."); return; }
-                    x = r.Left; y = r.Top; w = r.Right - r.Left; h = r.Bottom - r.Top;
-                }
-                else
-                {
-                    var bounds = System.Windows.Forms.SystemInformation.VirtualScreen;
-                    x = bounds.X; y = bounds.Y; w = bounds.Width; h = bounds.Height;
-                }
-                if (w <= 0 || h <= 0) { Report("Hinoki", "Пустая область для снимка."); return; }
-                using (var bmp = new System.Drawing.Bitmap(w, h))
-                {
-                    using (var g = System.Drawing.Graphics.FromImage(bmp))
-                        g.CopyFromScreen(x, y, 0, 0, bmp.Size);
-                    string dir = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
-                    string file = System.IO.Path.Combine(dir, "Hinoki_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".png");
-                    bmp.Save(file, System.Drawing.Imaging.ImageFormat.Png);
-                    Sounds.Play("shutter");
-                    Toast.Show("Скриншот готов", file, "camera");
-                    if (App.Config != null && App.Config.OpenShotFolder)
-                    {
-                        var psi = new ProcessStartInfo("explorer.exe", "/select,\"" + file + "\"");
-                        psi.UseShellExecute = true;
-                        Process.Start(psi);
-                    }
-                }
-            }
-            catch (Exception ex) { Report("Hinoki", "Скриншот не получился: " + ex.Message); }
+            else Toast.Show("Отменено", "Действие отменено", "info");
         }
 
         static void MonitorOff()
         {
             Native.SendMessageW(new IntPtr(0xFFFF), 0x0112, new IntPtr(0xF170), new IntPtr(2));
         }
-
-        static void MinimizeActive()
-        {
-            IntPtr fg = Native.GetForegroundWindow();
-            if (fg != IntPtr.Zero) Native.ShowWindow(fg, 6); // SW_MINIMIZE
-        }
-
-        static void ToggleTopmost()
-        {
-            IntPtr fg = Native.GetForegroundWindow();
-            if (fg == IntPtr.Zero) return;
-            var now = new System.Collections.Generic.List<byte[]>();
-            uint style = GetWindowLong(fg, -20); // GWL_EXSTYLE
-            bool isTopmost = (style & 0x8) != 0; // WS_EX_TOPMOST
-            Native.SetWindowPos(fg, isTopmost ? Native.HWND_NOTOPMOST : Native.HWND_TOPMOST,
-                0, 0, 0, 0, Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE);
-        }
-
-        [DllImport("user32.dll")]
-        static extern uint GetWindowLong(IntPtr hWnd, int nIndex);
 
         // ---- keystrokes ----
 
@@ -328,7 +255,6 @@ namespace Hinoki
             if (main == 0 && mods == 0) return;
 
             var seq = new System.Collections.Generic.List<ushort>();
-            // modifiers down
             ushort[] modKeys = { 0x11, 0x10, 0x12, 0x5B };
             foreach (ushort mk in modKeys)
                 if ((mods & mk) != 0) seq.Add(mk);
@@ -349,7 +275,7 @@ namespace Hinoki
             Native.SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(Native.INPUT)));
         }
 
-        public static ushort VkFromName(string s)
+        static ushort VkFromName(string s)
         {
             if (s.Length == 1)
             {
@@ -360,7 +286,7 @@ namespace Hinoki
             if (s.StartsWith("f", StringComparison.Ordinal) && s.Length <= 3)
             {
                 short n;
-                if (short.TryParse(s.Substring(1), out n) && n >= 1 && n <= 24) return (ushort)(0x6F + n); // F1=0x70
+                if (short.TryParse(s.Substring(1), out n) && n >= 1 && n <= 24) return (ushort)(0x6F + n);
             }
             switch (s)
             {
@@ -381,14 +307,6 @@ namespace Hinoki
                 case "playpause": return 0xB3;
             }
             return 0;
-        }
-
-        static void Report(string title, string text)
-        {
-            if (App.Config != null && !App.Config.ShowNotifications) return;
-            var d = Application.Current != null ? Application.Current.Dispatcher : null;
-            if (d != null)
-                d.BeginInvoke(new Action(delegate { Tray.Balloon(title, text); }));
         }
     }
 }

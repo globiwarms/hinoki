@@ -54,6 +54,7 @@ namespace Hinoki
         UIElement _iconHost;
         ContentControl _iconWrap;
         bool _muted;
+        Border _shapeRef;
 
         public PetalView(int index, PetalConfig cfg, double w, double h)
         {
@@ -80,6 +81,7 @@ namespace Hinoki
             glowFx.BlurRadius = 26; glowFx.ShadowDepth = 0; glowFx.Opacity = glow;
             shapeHost.Effect = glowFx;
             _shape = shapeHost;
+            _shapeRef = shapeHost;
 
             var grid = new Grid();
 
@@ -271,7 +273,34 @@ namespace Hinoki
         public void SetData(PetalConfig cfg)
         {
             RefreshIcon();
+            RefreshTint(cfg);
             _label.Text = cfg.Label;
+        }
+
+        /// <summary>Apply per-petal tint color ("" = default glass).</summary>
+        public void RefreshTint(PetalConfig cfg)
+        {
+            var cfgApp = App.Config;
+            double k = cfgApp != null ? cfgApp.PetalOpacity / 100.0 : 1.0;
+            bool light = cfgApp != null && cfgApp.LightGlass;
+            Color tint;
+            bool custom = Ui.TryParseHex(cfg.Color, out tint);
+            if (_shapeRef == null) return;
+            if (custom)
+            {
+                var g = new LinearGradientBrush();
+                g.StartPoint = new Point(0, 0); g.EndPoint = new Point(0, 1);
+                g.GradientStops.Add(new GradientStop(Color.FromArgb((byte)(115 * k), tint.R, tint.G, tint.B), 0));
+                g.GradientStops.Add(new GradientStop(Color.FromArgb((byte)(60 * k), tint.R, tint.G, tint.B), 1));
+                g.Freeze();
+                _shapeRef.Background = g;
+                _shapeRef.BorderBrush = Ui.Solid(tint, 0.62);
+            }
+            else
+            {
+                _shapeRef.Background = light ? Ui.GlassFill(0.72 * k, 0.42 * k) : Ui.GlassFill(0.26 * k, 0.10 * k);
+                _shapeRef.BorderBrush = Ui.Solid(Colors.White, light ? 0.62 : 0.36);
+            }
         }
 
         public void PlayIn(TimeSpan delay)

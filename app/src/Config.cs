@@ -10,15 +10,18 @@ namespace Hinoki
     public class PetalConfig
     {
         public string Label { get; set; }
-        public string Icon { get; set; }     // hex glyph code, e.g. "E720"
+        public string Icon { get; set; }     // lucide icon name
         public string Action { get; set; }   // see Actions.Keys
-        public string Target { get; set; }   // app path / url / key combo
+        public string Target { get; set; }   // app path / folder / cmd / url
         public string Args { get; set; }     // launch arguments
+        public string Color { get; set; }    // petal tint hex ("" = default glass)
+        public string Hotkey { get; set; }   // per-petal global hotkey ("" = none)
 
         public PetalConfig() { }
         public PetalConfig(string label, string icon, string action, string target, string args)
         {
             Label = label; Icon = icon; Action = action; Target = target; Args = args;
+            Color = ""; Hotkey = "";
         }
 
         public PetalConfig Clone()
@@ -210,13 +213,15 @@ namespace Hinoki
                 if (p.Action == null) p.Action = "none";
                 if (p.Target == null) p.Target = "";
                 if (p.Args == null) p.Args = "";
+                if (p.Color == null) p.Color = "";
+                if (p.Hotkey == null) p.Hotkey = "";
             }
         }
 
         public static AppConfig Defaults()
         {
             var c = new AppConfig();
-            c.Version = 8;
+            c.Version = 9;
             c.InterceptClick = true;
             c.ShowAtCursor = true;
             c.CloseAfterAction = true;
@@ -251,12 +256,12 @@ namespace Hinoki
             c.SoundClick = true;
             c.Petals = new List<PetalConfig>
             {
-                new PetalConfig("Микрофон", "mic",       "mic_toggle", "", ""),
-                new PetalConfig("Звук",     "volume-2",  "volume_mute", "", ""),
-                new PetalConfig("Скриншот", "camera",    "screenshot_file", "", ""),
-                new PetalConfig("Музыка",   "play",      "media", "", ""),
+                new PetalConfig("Микрофон", "mic",        "mic_toggle", "", ""),
+                new PetalConfig("Звук",     "volume-2",   "volume_mute", "", ""),
+                new PetalConfig("Скриншот", "camera",     "screenshot", "", ""),
+                new PetalConfig("Музыка",   "play",       "media", "", ""),
                 new PetalConfig("Приложение", "app-window", "app", "", ""),
-                new PetalConfig("Ссылка",   "link-2",    "url", "", "")
+                new PetalConfig("Папка",    "folder",     "open_folder", "", "")
             };
             return c;
         }
@@ -314,6 +319,21 @@ namespace Hinoki
             return cfg != null ? cfg.AnimSpeed / 100.0 : 1.0;
         }
 
+        public static bool TryParseHex(string hex, out Color color)
+        {
+            color = Colors.White;
+            try
+            {
+                if (string.IsNullOrEmpty(hex) || hex.Length != 6) return false;
+                byte r = Convert.ToByte(hex.Substring(0, 2), 16);
+                byte g = Convert.ToByte(hex.Substring(2, 2), 16);
+                byte b = Convert.ToByte(hex.Substring(4, 2), 16);
+                color = Color.FromRgb(r, g, b);
+                return true;
+            }
+            catch { return false; }
+        }
+
         public static char Glyph(string hex)
         {
             int code;
@@ -326,68 +346,26 @@ namespace Hinoki
     {
         public static readonly string[] Keys = new string[]
         {
-            "none", "mic_toggle", "volume_mute",
-            "volume_up", "volume_down",
-            "media", "media_next", "media_prev",
-            "app", "url", "hotkey",
-            "screenshot_file", "screenshot_buffer", "screenshot_window",
-            "show_desktop", "minimize_window", "topmost_window",
-            "lock_pc", "sleep_pc", "restart_pc", "shutdown_pc",
-            "task_manager", "windows_settings", "calculator",
-            "emoji_panel", "paste_clipboard",
-            "open_steam", "open_config", "open_settings",
-            "open_downloads", "open_desktop", "open_documents",
-            "copy", "monitor_off", "clear_recycle_bin", "open_discord", "open_spotify",
-            "search_start", "notification_center",
-            "mute_all", "close_window", "paste_plain", "clear_clipboard", "restart_explorer"
+            "none", "app", "volume_mute", "mic_toggle", "volume_down", "volume_up",
+            "screenshot", "media", "open_folder", "run_cmd", "power_menu",
+            "show_desktop", "url"
         };
 
         public static readonly string[] Names = new string[]
         {
             "Ничего",
-            "Микрофон вкл / выкл",
-            "Звук вкл / выкл",
-            "Громче",
-            "Тише",
-            "Play / Pause — музыка",
-            "Следующий трек",
-            "Предыдущий трек",
             "Открыть приложение",
-            "Открыть ссылку",
-            "Своё сочетание клавиш",
-            "Скриншот экрана → в Изображения",
-            "Скриншот области → в буфер",
-            "Скриншот окна → в Изображения",
-            "Показать рабочий стол",
-            "Свернуть активное окно",
-            "Поверх всех окон — переключить",
-            "Заблокировать ПК",
-            "Спящий режим",
-            "Перезагрузка",
-            "Выключение",
-            "Диспетчер задач",
-            "Параметры Windows",
-            "Калькулятор",
-            "Панель эмодзи",
-            "Вставить из буфера",
-            "Открыть Steam",
-            "Открыть папку настроек Hinoki",
-            "Открыть настройки Hinoki",
-            "Открыть папку Загрузки",
-            "Открыть папку Рабочий стол",
-            "Открыть папку Документы",
-            "Копировать выделенное",
-            "Выключить монитор",
-            "Очистить корзину",
-            "Открыть Discord",
-            "Открыть Spotify",
-            "Поиск Windows",
-            "Центр уведомлений",
-            "Тихий режим (микро + звук)",
-            "Закрыть активное окно",
-            "Вставить как обычный текст",
-            "Очистить буфер обмена",
-            "Перезапустить Проводник"
+            "Звук выкл / вкл",
+            "Микрофон выкл / вкл",
+            "Тише (25%)",
+            "Громче (25%)",
+            "Скриншот → в буфер",
+            "Пауза / вкл музыки",
+            "Открыть выбранную папку",
+            "Команда в CMD",
+            "Питание: сон / выкл",
+            "Свернуть все окна",
+            "Открыть ссылку"
         };
 
         public static string NameOf(string key)
@@ -400,46 +378,19 @@ namespace Hinoki
         {
             switch (key)
             {
-                case "discord_mute": return "E720";
-                case "discord_deafen": return "E767";
-                case "volume_mute": return "E74F";
-                case "volume_up": return "E995";
-                case "volume_down": return "E994";
-                case "media": return "E768";
-                case "media_next": return "E892";
-                case "media_prev": return "E892";
-                case "app": return "E71D";
-                case "url": return "E71B";
-                case "hotkey": return "E765";
-                case "screenshot_file": return "E722";
-                case "screenshot_window": return "E7A5";
-                case "screenshot_buffer": return "E7A5";
-                case "show_desktop": return "EA3A";
-                case "minimize_window": return "E921";
-                case "topmost_window": return "E718";
-                case "lock_pc": return "E72E";
-                case "sleep_pc": return "E708";
-                case "restart_pc": return "E777";
-                case "shutdown_pc": return "E7E8";
-                case "task_manager": return "E9D9";
-                case "windows_settings": return "E713";
-                case "calculator": return "E8EF";
-                case "emoji_panel": return "E76E";
-                case "paste_clipboard": return "E77F";
-                case "open_steam": return "E7FC";
-                case "open_config": return "E8B7";
-                case "open_settings": return "E713";
-                case "open_downloads": return "E896";
-                case "open_desktop": return "E9F9";
-                case "open_documents": return "E8A5";
-                case "copy": return "E8C8";
-                case "monitor_off": return "E7F4";
-                case "clear_recycle_bin": return "E74D";
-                case "open_discord": return "E8BD";
-                case "open_spotify": return "EC4F";
-                case "search_start": return "E721";
-                case "notification_center": return "E7E7";
-                default: return "E713";
+                case "app": return "app-window";
+                case "volume_mute": return "volume-x";
+                case "mic_toggle": return "mic";
+                case "volume_down": return "volume-1";
+                case "volume_up": return "volume-2";
+                case "screenshot": return "camera";
+                case "media": return "play";
+                case "open_folder": return "folder";
+                case "run_cmd": return "terminal";
+                case "power_menu": return "power";
+                case "show_desktop": return "monitor";
+                case "url": return "link-2";
+                default: return "settings";
             }
         }
     }

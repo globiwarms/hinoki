@@ -1,4 +1,4 @@
-// Hinoki — custom liquid-glass toast notifications & confirmation dialog
+// Hinoki — custom liquid-glass toast notifications, power menu & confirmation dialog
 using System;
 using System.Windows;
 using System.Windows.Controls;
@@ -223,11 +223,13 @@ namespace Hinoki
                 var ic = new Canvas(); ic.Width = 24; ic.Height = 24;
                 var p = new System.Windows.Shapes.Path();
                 p.Data = Lucide.Get(icon);
+                p.Stretch = Stretch.Uniform;
                 p.Stroke = Ui.Solid(danger ? Ui.Danger : Ui.Accent, 1);
                 p.StrokeThickness = 1.6;
                 p.StrokeLineJoin = PenLineJoin.Round;
                 p.StrokeStartLineCap = PenLineCap.Round;
                 p.StrokeEndLineCap = PenLineCap.Round;
+                p.Width = 24; p.Height = 24;
                 ic.Children.Add(p);
                 ivb.Child = ic;
                 iconWrap.Child = ivb;
@@ -264,6 +266,114 @@ namespace Hinoki
                 chrome.Child = stack;
                 win.Content = chrome;
                 win.ShowDialog();
+            }
+            catch { }
+        }
+    }
+
+    public static class PowerMenu
+    {
+        /// <summary>Glass power dialog: sleep / restart / shutdown. Returns choice or "".</summary>
+        public static string Show()
+        {
+            string result = "";
+            var d = Application.Current != null ? Application.Current.Dispatcher : null;
+            if (d == null) return result;
+            if (d.CheckAccess()) { BuildAndShow(ref result); return result; }
+            d.Invoke(new Action(delegate { BuildAndShow(ref result); }));
+            return result;
+        }
+
+        class Choice { public string Value; }
+
+        static void BuildAndShow(ref string result)
+        {
+            try
+            {
+                var win = new Window();
+                win.Width = 400;
+                win.SizeToContent = SizeToContent.WidthAndHeight;
+                win.WindowStyle = WindowStyle.None;
+                win.AllowsTransparency = true;
+                win.Background = Brushes.Transparent;
+                win.ShowInTaskbar = false;
+                win.Topmost = true;
+                win.ResizeMode = ResizeMode.NoResize;
+                win.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+
+                var chrome = new Border();
+                chrome.CornerRadius = new CornerRadius(20);
+                var fill = new LinearGradientBrush();
+                fill.StartPoint = new Point(0, 0); fill.EndPoint = new Point(0.6, 1);
+                fill.GradientStops.Add(new GradientStop(Color.FromRgb(0x20, 0x22, 0x29), 0));
+                fill.GradientStops.Add(new GradientStop(Color.FromRgb(0x13, 0x14, 0x19), 1));
+                fill.Freeze();
+                chrome.Background = fill;
+                chrome.BorderBrush = Ui.Solid(Colors.White, 0.13);
+                chrome.BorderThickness = new Thickness(1);
+                chrome.Padding = new Thickness(14);
+
+                var stack = new StackPanel();
+
+                var t = Glass.Label("Питание", 16, false, true);
+                t.Margin = new Thickness(8, 4, 0, 10);
+                stack.Children.Add(t);
+
+                var holder = new Choice();
+                string[][] rows = new string[][]
+                {
+                    new[] { "moon", "Спящий режим", "sleep", "0" },
+                    new[] { "rotate-cw", "Перезагрузка", "restart", "0" },
+                    new[] { "power", "Выключение", "shutdown", "1" }
+                };
+                foreach (string[] rowDef in rows)
+                {
+                    var row = new Border();
+                    row.CornerRadius = new CornerRadius(12);
+                    row.Padding = new Thickness(12, 9, 12, 10);
+                    row.Margin = new Thickness(0, 2, 0, 2);
+                    row.Cursor = Cursors.Hand;
+                    row.Background = Ui.Solid(Colors.White, 0.04);
+
+                    var g = new Grid();
+                    g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    var ic = LucideHost.Build(rowDef[0], 18, false);
+                    var icHost = new ContentControl();
+                    icHost.Content = ic;
+                    icHost.Width = 20; icHost.Height = 20;
+                    icHost.VerticalAlignment = VerticalAlignment.Center;
+                    if (rowDef[3] == "1") ((System.Windows.Shapes.Path)ic).Stroke = Ui.Solid(Ui.Danger, 1);
+                    Grid.SetColumn(icHost, 0);
+                    g.Children.Add(icHost);
+                    var tl = Glass.Label(rowDef[1], 13.5, false, true);
+                    tl.Margin = new Thickness(12, 0, 0, 0);
+                    if (rowDef[3] == "1") tl.Foreground = Ui.Solid(Ui.Danger, 1);
+                    tl.VerticalAlignment = VerticalAlignment.Center;
+                    Grid.SetColumn(tl, 1);
+                    g.Children.Add(tl);
+                    row.Child = g;
+
+                    row.MouseEnter += delegate { row.Background = Ui.Solid(Colors.White, 0.08); };
+                    row.MouseLeave += delegate { row.Background = Ui.Solid(Colors.White, 0.04); };
+                    row.MouseLeftButtonDown += delegate
+                    {
+                        holder.Value = rowDef[2];
+                        win.Close();
+                    };
+                    stack.Children.Add(row);
+                }
+
+                var cancel = new PillButton("Отмена", false);
+                cancel.Margin = new Thickness(0, 10, 0, 0);
+                cancel.HorizontalAlignment = HorizontalAlignment.Center;
+                cancel.Clicked += delegate { win.Close(); };
+                stack.Children.Add(cancel);
+
+                chrome.Child = stack;
+                win.Content = chrome;
+                win.ShowDialog();
+                result = holder.Value;
             }
             catch { }
         }

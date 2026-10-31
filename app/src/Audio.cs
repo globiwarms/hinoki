@@ -81,6 +81,18 @@ namespace Hinoki
             catch { }
         }
 
+        public static double GetSystemVolume()
+        {
+            try { float v; GetEndpoint(false).GetMasterVolumeLevelScalar(out v); return v; }
+            catch { return -1; }
+        }
+
+        public static void SetSystemVolume(double level)
+        {
+            try { GetEndpoint(false).SetMasterVolumeLevelScalar((float)Math.Max(0, Math.Min(1, level)), Guid.Empty); }
+            catch { }
+        }
+
         public static bool IsSystemMuted()
         {
             try { bool m; GetEndpoint(false).GetMute(out m); return m; }
