@@ -46,18 +46,22 @@ def api(method, path, tok, payload=None, raw=None, content_type=None):
 
 NL = chr(10)
 RELEASE_12_BODY = NL.join([
-    "## 檜 Hinoki v2.3.0",
+    "## 檜 Hinoki v2.4.0",
     "",
-    "### Полировка",
-    "- **Иконки сгруппированы по категориям**: медиа → система → файлы → веб → разное",
-    "- Превью цветка в настройках показывает **живое состояние тогглов** (красный, пока выключено)",
-    "- Стиль «Только fade» больше не дёргает масштаб",
-    "- Кнопки получают лёгкое увеличение при наведении",
-    "- Убрано предупреждение компилятора, обновлены скриншоты сайта",
+    "### Без мерцания",
+    "- Цветок больше не мигает при появлении: все начальные состояния готовятся до первого кадра",
     "",
-    "**Full Changelog**: https://github.com/arseniyru90-afk/hinoki/compare/v2.2.0...v2.3.0",
+    "### Glass-тосты",
+    "- Уведомления теперь в стиле Hinoki: liquid glass, иконка Lucide, выезжают справа снизу",
+    "- Больше никаких системных бабблов Windows",
+    "",
+    "### Подтверждение питания",
+    "- Сон, перезагрузка и выключение показывают стеклянный диалог с красной кнопкой",
+    "- Отключается тумблером «Подтверждать выключение»",
+    "- Тумблер «Закрывать правой кнопкой»",
+    "",
+    "**Full Changelog**: https://github.com/arseniyru90-afk/hinoki/compare/v2.3.0...v2.4.0",
 ])
-
 if __name__ == "__main__":
     cmd = sys.argv[1]
     tok = token()
@@ -72,11 +76,11 @@ if __name__ == "__main__":
         print(status, body.get("full_name") if isinstance(body, dict) else body)
         if isinstance(body, dict) and body.get("full_name"):
             print("URL:", body["html_url"])
-    elif cmd == "release230":
+    elif cmd == "release240":
         status, rel = api("POST", "/repos/" + REPO + "/releases", tok, {
-            "tag_name": "v2.3.0",
+            "tag_name": "v2.4.0",
             "target_commitish": "main",
-            "name": "Hinoki v2.3.0 — полировка: группировка иконок, живое превью состояний",
+            "name": "Hinoki v2.4.0 — без мерцания, glass-тосты, подтверждение питания",
             "body": RELEASE_12_BODY,
             "draft": False,
             "prerelease": False,
