@@ -48,6 +48,7 @@ namespace Hinoki
         public string AccentHex { get; set; }
         public int PetalOpacity { get; set; }      // 30..100
         public int GlowStrength { get; set; }      // 0..100
+        public int CenterOpacity { get; set; }     // 30..100
         public bool BlurBackground { get; set; }   // glass blur inside settings window
         public bool LightGlass { get; set; }       // light glass theme for petals
 
@@ -100,7 +101,11 @@ namespace Hinoki
                             cfg.AnimationsEnabled = true;
                             cfg.CloseOnOutsideClick = true;
                         }
-                        cfg.Version = 3;
+                        if (cfg.Version < 4)
+                        {
+                            cfg.CenterOpacity = 92;
+                        }
+                        cfg.Version = 4;
                         cfg.Normalize();
                         return cfg;
                     }
@@ -129,6 +134,8 @@ namespace Hinoki
             if (PetalOpacity > 100) PetalOpacity = 100;
             if (GlowStrength < 0) GlowStrength = 0;
             if (GlowStrength > 100) GlowStrength = 100;
+            if (CenterOpacity < 30) CenterOpacity = 30;
+            if (CenterOpacity > 100) CenterOpacity = 100;
             if (SoundVolume < 0) SoundVolume = 0;
             if (SoundVolume > 100) SoundVolume = 100;
             if (string.IsNullOrEmpty(AccentHex)) AccentHex = "A8B899";
@@ -152,7 +159,7 @@ namespace Hinoki
         public static AppConfig Defaults()
         {
             var c = new AppConfig();
-            c.Version = 3;
+            c.Version = 4;
             c.InterceptClick = true;
             c.ShowAtCursor = true;
             c.CloseAfterAction = true;
@@ -167,6 +174,7 @@ namespace Hinoki
             c.AccentHex = "A8B899";
             c.PetalOpacity = 92;
             c.GlowStrength = 40;
+            c.CenterOpacity = 92;
             c.BlurBackground = true;
             c.LightGlass = false;
             c.SoundEnabled = true;
@@ -249,12 +257,13 @@ namespace Hinoki
             "volume_mute", "volume_up", "volume_down",
             "media", "media_next", "media_prev",
             "app", "url", "hotkey",
-            "screenshot_file", "screenshot_buffer",
+            "screenshot_file", "screenshot_buffer", "screenshot_window",
             "show_desktop", "minimize_window", "topmost_window",
             "lock_pc", "sleep_pc", "restart_pc", "shutdown_pc",
             "task_manager", "windows_settings", "calculator",
             "emoji_panel", "paste_clipboard",
-            "open_steam", "open_config", "open_settings"
+            "open_steam", "open_config", "open_settings",
+            "open_downloads", "open_desktop", "open_documents"
         };
 
         public static readonly string[] Names = new string[]
@@ -272,6 +281,7 @@ namespace Hinoki
             "Открыть ссылку",
             "Своё сочетание клавиш",
             "Скриншот экрана → в Изображения",
+            "Скриншот активного окна → в Изображения",
             "Скриншот области → в буфер",
             "Показать рабочий стол",
             "Свернуть активное окно",
@@ -287,7 +297,10 @@ namespace Hinoki
             "Вставить из буфера",
             "Открыть Steam",
             "Открыть папку настроек Hinoki",
-            "Открыть настройки Hinoki"
+            "Открыть настройки Hinoki",
+            "Открыть папку Загрузки",
+            "Открыть папку Рабочий стол",
+            "Открыть папку Документы"
         };
 
         public static string NameOf(string key)
@@ -312,6 +325,7 @@ namespace Hinoki
                 case "url": return "E71B";
                 case "hotkey": return "E765";
                 case "screenshot_file": return "E722";
+                case "screenshot_window": return "E7A5";
                 case "screenshot_buffer": return "E7A5";
                 case "show_desktop": return "EA3A";
                 case "minimize_window": return "E921";
@@ -328,6 +342,9 @@ namespace Hinoki
                 case "open_steam": return "E7FC";
                 case "open_config": return "E8B7";
                 case "open_settings": return "E713";
+                case "open_downloads": return "E896";
+                case "open_desktop": return "E9F9";
+                case "open_documents": return "E8A5";
                 default: return "E713";
             }
         }

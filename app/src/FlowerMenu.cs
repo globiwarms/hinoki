@@ -273,8 +273,9 @@ namespace Hinoki
             _centerCircle = new Border();
             _centerCircle.Width = centerD; _centerCircle.Height = centerD;
             _centerCircle.CornerRadius = new CornerRadius(centerD);
-            _centerCircle.Background = light ? Ui.GlassFill(0.80 * k, 0.55 * k) : Ui.GlassFill(0.30 * k, 0.16 * k);
-            _centerCircle.BorderBrush = Ui.Solid(Colors.White, light ? 0.7 : 0.5);
+            double ck = cfg.CenterOpacity / 100.0;
+            _centerCircle.Background = light ? Ui.GlassFill(0.80 * ck, 0.55 * ck) : Ui.GlassFill(0.30 * ck, 0.16 * ck);
+            _centerCircle.BorderBrush = Ui.Solid(Colors.White, (light ? 0.7 : 0.5) * ck);
             _centerCircle.BorderThickness = new Thickness(1.4);
             var cg = new DropShadowEffect();
             cg.Color = Colors.White; cg.BlurRadius = 24; cg.ShadowDepth = 0;

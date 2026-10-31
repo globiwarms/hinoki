@@ -53,6 +53,8 @@ namespace Hinoki
         List<Border> _rail = new List<Border>();
         Dictionary<string, FrameworkElement> _pages = new Dictionary<string, FrameworkElement>();
         ContentControl _pageHost;
+        GlassDropDown _actionDrop;
+        TextBlock _pageTitle;
         string _page = "petals";
         bool _suppressPulse;
 
@@ -121,6 +123,24 @@ namespace Hinoki
                 _instance = null;
                 MouseHook.Suppressed = false;
             };
+            Loaded += delegate
+            {
+                var t = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
+                t.Tick += delegate
+                {
+                    t.Stop();
+                    try
+                    {
+                        if (_actionDrop != null)
+                        {
+                            var pt = _actionDrop.PointToScreen(new Point(_actionDrop.ActualWidth / 2, _actionDrop.ActualHeight / 2));
+                            OverlayWindow.Log(string.Format("DROPDOWNPOS {0:0} {1:0}", pt.X, pt.Y));
+                        }
+                    }
+                    catch { }
+                };
+                t.Start();
+            };
             MouseLeftButtonDown += delegate
             {
                 if (Mouse.GetPosition(_chrome).Y < 64) DragMove();
@@ -169,7 +189,7 @@ namespace Hinoki
             bn.VerticalAlignment = VerticalAlignment.Center;
             bn.Margin = new Thickness(10, 0, 0, 0);
             bn.Children.Add(Glass.Label("Hinoki", 15.5, false, true));
-            bn.Children.Add(Glass.Label("v1.2.0", 10, true));
+            bn.Children.Add(Glass.Label("v1.2.4", 10, true));
             brand.Children.Add(bn);
             Grid.SetRow(brand, 0);
             rail.Children.Add(brand);
@@ -199,7 +219,7 @@ namespace Hinoki
             item.Padding = new Thickness(11, 8, 11, 9);
             item.Margin = new Thickness(0, 1, 0, 1);
             item.Cursor = Cursors.Hand;
-            item.Background = key == "petals" ? Ui.Solid(Ui.Accent, 0.16) : Brushes.Transparent;
+            item.Background = key == "petals" ? Ui.Solid(Ui.Accent, 0.22) : Brushes.Transparent;
 
             var sp = new StackPanel();
             sp.Orientation = Orientation.Horizontal;
@@ -233,12 +253,11 @@ namespace Hinoki
             for (int i = 0; i < _rail.Count; i++)
             {
                 bool active = keys[i] == key;
-                _rail[i].Background = active ? Ui.Solid(Ui.Accent, 0.16) : Brushes.Transparent;
+                _rail[i].Background = active ? Ui.Solid(Ui.Accent, 0.22) : Brushes.Transparent;
                 var ic = (TextBlock)((StackPanel)_rail[i].Child).Children[0];
                 ic.Foreground = active ? Ui.Solid(Ui.Accent, 1) : Ui.Solid(Ui.InkDim, 1);
             }
-            var titleBlock = FindTitle();
-            if (titleBlock != null) titleBlock.Text = PageTitle(key);
+            if (_pageTitle != null) _pageTitle.Text = PageTitle(key);
             FrameworkElement page;
             if (!_pages.TryGetValue(key, out page))
             {
@@ -277,9 +296,8 @@ namespace Hinoki
 
             var head = new Grid();
             head.Margin = new Thickness(4, 0, 0, 14);
-            var title = Glass.Label(PageTitle("petals"), 22, false, true);
-            title.Tag = "pagetitle";
-            head.Children.Add(title);
+            _pageTitle = Glass.Label(PageTitle("petals"), 22, false, true);
+            head.Children.Add(_pageTitle);
 
             // close button — top right, always visible
             var close = MakeCloseButton();
@@ -297,26 +315,6 @@ namespace Hinoki
             Grid.SetRow(_pageHost, 1);
             col.Children.Add(_pageHost);
             return col;
-        }
-
-        TextBlock FindTitle()
-        {
-            // header title is tagged inside the content column
-            return FindTitleIn((Grid)((Border)Content).Child);
-        }
-
-        TextBlock FindTitleIn(System.Windows.DependencyObject node)
-        {
-            int n = System.Windows.Media.VisualTreeHelper.GetChildrenCount(node);
-            for (int i = 0; i < n; i++)
-            {
-                var child = System.Windows.Media.VisualTreeHelper.GetChild(node, i);
-                var tb = child as TextBlock;
-                if (tb != null && "pagetitle".Equals(tb.Tag)) return tb;
-                var deeper = FindTitleIn(child);
-                if (deeper != null) return deeper;
-            }
-            return null;
         }
 
         string PageTitle(string key)
@@ -534,7 +532,7 @@ namespace Hinoki
                 row.Margin = new Thickness(0, 1, 0, 1);
                 row.Cursor = Cursors.Hand;
                 bool sel = idx == _selPetal;
-                row.Background = sel ? Ui.Solid(Ui.Accent, 0.15) : Brushes.Transparent;
+                row.Background = sel ? Ui.Solid(Ui.Accent, 0.22) : Brushes.Transparent;
 
                 var g = new Grid();
                 g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -804,6 +802,19 @@ namespace Hinoki
             stack.Children.Add(Setting("Сила свечения", null, AttachSlider(glowSlider, glowVal)));
             stack.Children.Add(Sep());
 
+            var cVal = Glass.Label(cfgApp.CenterOpacity + "%", 13, true);
+            var cSlider = new GlassSlider(30, 100, cfgApp.CenterOpacity);
+            cSlider.Changed += delegate
+            {
+                App.Config.CenterOpacity = (int)Math.Round(cSlider.Value);
+                cVal.Text = App.Config.CenterOpacity + "%";
+                App.SaveConfig();
+                _preview.Rebuild();
+                Pulse();
+            };
+            stack.Children.Add(Setting("Прозрачность центра", null, AttachSlider(cSlider, cVal)));
+            stack.Children.Add(Sep());
+
             var sizeVal = Glass.Label(cfgApp.MenuSizePercent + "%", 13, true);
             var sizeSlider = new GlassSlider(50, 100, cfgApp.MenuSizePercent);
             sizeSlider.Changed += delegate
@@ -1000,11 +1011,17 @@ namespace Hinoki
             tgAuto.Changed += delegate { App.Config.Autostart = tgAuto.IsOn; App.ApplyAutostart(); App.SaveConfig(); Pulse(); };
             stack.Children.Add(Setting("Запускать вместе с Windows", "Hinoki будет ждать вас в трее", tgAuto));
 
+            var rowBtns = new StackPanel();
+            rowBtns.Orientation = Orientation.Horizontal;
+            rowBtns.Margin = new Thickness(0, 4, 0, 0);
             var testBtn = new PillButton("Открыть меню (тест)", false);
-            testBtn.HorizontalAlignment = HorizontalAlignment.Left;
-            testBtn.Margin = new Thickness(2, 14, 0, 0);
             testBtn.Clicked += delegate { App.TestMenu(); };
-            stack.Children.Add(testBtn);
+            rowBtns.Children.Add(testBtn);
+            var restart = new PillButton("Перезапустить Hinoki", false);
+            restart.Margin = new Thickness(8, 0, 0, 0);
+            restart.Clicked += delegate { App.RestartApp(); };
+            rowBtns.Children.Add(restart);
+            stack.Children.Add(rowBtns);
 
             return WrapPage("Поведение", stack);
         }
@@ -1028,7 +1045,7 @@ namespace Hinoki
             name.Margin = new Thickness(0, 14, 0, 0);
             stack.Children.Add(name);
 
-            var ver = Glass.Label("Версия 1.2.0 · Windows 10/11", 12, true);
+            var ver = Glass.Label("Версия 1.2.4 · Windows 10/11", 12, true);
             ver.HorizontalAlignment = HorizontalAlignment.Center;
             ver.Margin = new Thickness(0, 3, 0, 0);
             stack.Children.Add(ver);

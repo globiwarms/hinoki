@@ -38,7 +38,8 @@ namespace Hinoki
                 case "app": LaunchApp(p); break;
                 case "url": OpenUrl(p); break;
                 case "hotkey": PressCombo(p.Target); break;
-                case "screenshot_file": ScreenshotToFile(); break;
+                case "screenshot_file": ScreenshotToFile(false); break;
+                case "screenshot_window": ScreenshotToFile(true); break;
                 case "screenshot_buffer": PressCombo("Win+Shift+S"); break;
                 case "show_desktop": PressCombo("Win+D"); break;
                 case "minimize_window": MinimizeActive(); break;
@@ -54,6 +55,9 @@ namespace Hinoki
                 case "paste_clipboard": PressCombo("Ctrl+V"); break;
                 case "open_steam": OpenLink("steam://open/games"); break;
                 case "open_config": OpenLink(AppConfig.Dir); break;
+                case "open_downloads": Shell("explorer.exe", "shell:Downloads"); break;
+                case "open_desktop": OpenLink(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory)); break;
+                case "open_documents": OpenLink(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)); break;
                 case "open_settings": RunOnUi(delegate { App.OpenSettings(); }); break;
             }
         }
@@ -154,15 +158,29 @@ namespace Hinoki
             else a();
         }
 
-        static void ScreenshotToFile()
+        static void ScreenshotToFile(bool activeWindowOnly)
         {
             try
             {
-                var bounds = System.Windows.Forms.SystemInformation.VirtualScreen;
-                using (var bmp = new System.Drawing.Bitmap(bounds.Width, bounds.Height))
+                int x, y, w, h;
+                if (activeWindowOnly)
+                {
+                    IntPtr fg = Native.GetForegroundWindow();
+                    if (fg == IntPtr.Zero) { Report("Hinoki", "Нет активного окна."); return; }
+                    Native.RECT r;
+                    if (!Native.GetWindowRect(fg, out r)) { Report("Hinoki", "Не удалось измерить окно."); return; }
+                    x = r.Left; y = r.Top; w = r.Right - r.Left; h = r.Bottom - r.Top;
+                }
+                else
+                {
+                    var bounds = System.Windows.Forms.SystemInformation.VirtualScreen;
+                    x = bounds.X; y = bounds.Y; w = bounds.Width; h = bounds.Height;
+                }
+                if (w <= 0 || h <= 0) { Report("Hinoki", "Пустая область для снимка."); return; }
+                using (var bmp = new System.Drawing.Bitmap(w, h))
                 {
                     using (var g = System.Drawing.Graphics.FromImage(bmp))
-                        g.CopyFromScreen(bounds.X, bounds.Y, 0, 0, bmp.Size);
+                        g.CopyFromScreen(x, y, 0, 0, bmp.Size);
                     string dir = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
                     string file = System.IO.Path.Combine(dir, "Hinoki_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".png");
                     bmp.Save(file, System.Drawing.Imaging.ImageFormat.Png);

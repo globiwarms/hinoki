@@ -338,6 +338,19 @@ namespace Hinoki
             OpenSettings();
         }
 
+        public static void RestartApp()
+        {
+            try
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo();
+                psi.FileName = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                psi.UseShellExecute = true;
+                System.Diagnostics.Process.Start(psi);
+            }
+            catch { }
+            ExitApp();
+        }
+
         public static void ExitApp()
         {
             try

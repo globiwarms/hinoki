@@ -326,7 +326,8 @@ namespace Hinoki
             Child = grid;
             Render();
 
-            MouseLeftButtonDown += delegate { OpenPopup(); };
+            // open on UP: a Down-opened popup gets instantly dismissed by the same click's capture logic
+            PreviewMouseLeftButtonUp += delegate { OverlayWindow.Log("DROPDOWN open requested"); OpenPopup(); };
         }
 
         void Render() { _label.Text = _items[_index]; }

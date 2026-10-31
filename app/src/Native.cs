@@ -85,6 +85,9 @@ namespace Hinoki
         public static extern bool LockWorkStation();
 
         [DllImport("user32.dll")]
+        public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
+
+        [DllImport("user32.dll")]
         public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);
 
         public static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
