@@ -215,7 +215,8 @@ namespace Hinoki
         {
             try
             {
-                if (OverlayWindow.Current != null && !OverlayWindow.ContainsPhysicalPoint(x, y))
+                if (OverlayWindow.Current != null && !OverlayWindow.ContainsPhysicalPoint(x, y)
+                    && Config.CloseOnOutsideClick)
                     OverlayWindow.Current.SafeClose();
             }
             catch { }

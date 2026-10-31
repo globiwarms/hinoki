@@ -139,6 +139,7 @@ namespace Hinoki
             KeyboardHook.EscPressed -= OnEsc;
             KeyboardHook.Uninstall();
             Sounds.Play("close");
+            if (App.Config != null && !App.Config.AnimationsEnabled) { Close(); return; }
             if (_flower != null) _flower.PlayOut(delegate { Close(); });
             else Close();
         }

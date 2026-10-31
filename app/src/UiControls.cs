@@ -281,6 +281,10 @@ namespace Hinoki
         int _index;
         public event Action Changed;
         TextBlock _label;
+        Popup _popup;
+
+        /// <summary>When true the popup stays open after picking — for browsing actions.</summary>
+        public bool KeepOpenOnSelect { get; set; }
 
         public int SelectedIndex
         {
@@ -329,6 +333,7 @@ namespace Hinoki
 
         void OpenPopup()
         {
+            if (_popup != null && _popup.IsOpen) { _popup.IsOpen = false; return; }
             var popup = new Popup();
             popup.PlacementTarget = this;
             popup.Placement = PlacementMode.Bottom;
@@ -346,12 +351,22 @@ namespace Hinoki
                 row.CornerRadius = new CornerRadius(9);
                 row.Margin = new Thickness(5, 2, 5, 2);
                 row.Cursor = Cursors.Hand;
+                var wrap = new StackPanel();
+                wrap.Orientation = Orientation.Horizontal;
+                var mark = new TextBlock();
+                mark.Text = i == _index ? ((char)0xE73E).ToString() : " ";
+                mark.FontFamily = Ui.Icons;
+                mark.FontSize = 11;
+                mark.Width = 18;
+                mark.Foreground = Ui.Solid(Ui.Accent, 1);
+                wrap.Children.Add(mark);
                 var t = new TextBlock();
                 t.Text = _items[i];
                 t.FontFamily = Ui.Text;
                 t.FontSize = 13;
                 t.Foreground = i == _index ? Ui.Solid(Ui.Accent, 1) : Ui.Solid(Ui.Ink, 0.9);
-                row.Child = t;
+                wrap.Children.Add(t);
+                row.Child = wrap;
                 row.Background = i == _index ? Ui.Solid(Ui.Accent, 0.12) : Brushes.Transparent;
                 row.MouseEnter += delegate { row.Background = Ui.Solid(Colors.White, 0.08); };
                 row.MouseLeave += delegate { row.Background = i == _index ? Ui.Solid(Ui.Accent, 0.12) : Brushes.Transparent; };
@@ -359,7 +374,19 @@ namespace Hinoki
                 {
                     _index = idx;
                     Render();
-                    popup.IsOpen = false;
+                    // refresh every row's state without closing
+                    for (int j = 0; j < list.Children.Count; j++)
+                    {
+                        var other = (Border)list.Children[j];
+                        var otherText = (StackPanel)other.Child;
+                        var mk = (TextBlock)otherText.Children[0];
+                        var tx = (TextBlock)otherText.Children[1];
+                        bool sel = j == _index;
+                        mk.Text = sel ? ((char)0xE73E).ToString() : " ";
+                        tx.Foreground = sel ? Ui.Solid(Ui.Accent, 1) : Ui.Solid(Ui.Ink, 0.9);
+                        other.Background = sel ? Ui.Solid(Ui.Accent, 0.12) : Brushes.Transparent;
+                    }
+                    if (!KeepOpenOnSelect) popup.IsOpen = false;
                     if (Changed != null) Changed();
                 };
                 list.Children.Add(row);
@@ -378,6 +405,8 @@ namespace Hinoki
             host.Child = sv;
             host.Effect = new DropShadowEffect { Color = Colors.Black, BlurRadius = 34, ShadowDepth = 8, Opacity = 0.5 };
             popup.Child = host;
+            _popup = popup;
+            popup.Closed += delegate { _popup = null; };
             popup.IsOpen = true;
         }
     }
@@ -494,9 +523,9 @@ namespace Hinoki
                 t.Foreground = Ui.Solid(Ui.Ink, 0.95);
             }
 
-            MouseEnter += delegate { Opacity = 0.88; };
+            MouseEnter += delegate { Opacity = 0.9; };
             MouseLeave += delegate { Opacity = 1; };
-            MouseLeftButtonDown += delegate { Scale(0.96); };
+            MouseLeftButtonDown += delegate { Scale(0.95); };
             MouseLeftButtonUp += delegate
             {
                 Scale(1);
@@ -637,9 +666,8 @@ namespace Hinoki
         public void SetSelected(bool on)
         {
             _selected = on;
-            BorderBrush = on ? Ui.Solid(Ui.Accent, 0.95) : Ui.Solid(Colors.White, 0.10);
-            BorderThickness = new Thickness(on ? 1.6 : 1);
-            Background = on ? Ui.Solid(Ui.Accent, 0.18) : Ui.Solid(Colors.White, 0.05);
+            BorderThickness = new Thickness(0);
+            Background = on ? Ui.Solid(Ui.Accent, 0.20) : Ui.Solid(Colors.White, 0.05);
             _icon.Foreground = on ? Ui.Solid(Ui.Accent, 1) : Ui.Solid(Ui.Ink, 0.9);
         }
     }

@@ -153,6 +153,12 @@ namespace Hinoki
 
         public void PlayIn(TimeSpan delay)
         {
+            if (App.Config != null && !App.Config.AnimationsEnabled)
+            {
+                Scale.ScaleX = 1; Scale.ScaleY = 1;
+                Opacity = 1;
+                return;
+            }
             Scale.ScaleX = 0.35; Scale.ScaleY = 0.35;
             Opacity = 0;
             var t = new System.Windows.Threading.DispatcherTimer { Interval = delay };

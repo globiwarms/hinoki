@@ -35,6 +35,8 @@ namespace Hinoki
         public bool InterceptClick { get; set; }
         public bool ShowAtCursor { get; set; }
         public bool CloseAfterAction { get; set; }
+        public bool CloseOnOutsideClick { get; set; }
+        public bool AnimationsEnabled { get; set; }
         public bool ShowLabels { get; set; }
         public bool Autostart { get; set; }
         public int MenuSizePercent { get; set; }
@@ -79,8 +81,7 @@ namespace Hinoki
                     {
                         if (cfg.Version < 2)
                         {
-                            // v1.0 config: new options were absent — seed them with defaults
-                            cfg.Version = 2;
+                            // v1.0 config: options absent — seed with defaults
                             cfg.CloseAfterAction = true;
                             cfg.ShowLabels = true;
                             cfg.AccentHex = "A8B899";
@@ -94,6 +95,12 @@ namespace Hinoki
                             cfg.SoundClick = true;
                             cfg.GlobalHotkey = "";
                         }
+                        if (cfg.Version < 3)
+                        {
+                            cfg.AnimationsEnabled = true;
+                            cfg.CloseOnOutsideClick = true;
+                        }
+                        cfg.Version = 3;
                         cfg.Normalize();
                         return cfg;
                     }
@@ -145,10 +152,12 @@ namespace Hinoki
         public static AppConfig Defaults()
         {
             var c = new AppConfig();
-            c.Version = 2;
+            c.Version = 3;
             c.InterceptClick = true;
             c.ShowAtCursor = true;
             c.CloseAfterAction = true;
+            c.CloseOnOutsideClick = true;
+            c.AnimationsEnabled = true;
             c.ShowLabels = true;
             c.Autostart = false;
             c.MenuSizePercent = 78;
