@@ -65,6 +65,20 @@ namespace Hinoki
                 case "open_spotify": OpenLink("spotify:"); break;
                 case "search_start": PressCombo("Win+S"); break;
                 case "notification_center": PressCombo("Win+N"); break;
+                case "mute_all":
+                {
+                    bool micMuted = Audio.IsMicMuted();
+                    Audio.SetMicMuted(!micMuted);
+                    TapKey(0xAD); // toggle system volume
+                    if (!micMuted) Report("Hinoki", "Тихий режим: микрофон и звук выключены");
+                    break;
+                }
+                case "close_window":
+                {
+                    IntPtr fg = Native.GetForegroundWindow();
+                    if (fg != IntPtr.Zero) Native.SendMessageW(fg, 0x0010, IntPtr.Zero, IntPtr.Zero); // WM_CLOSE
+                    break;
+                }
                 case "open_steam": OpenLink("steam://open/games"); break;
                 case "open_config": OpenLink(AppConfig.Dir); break;
                 case "open_downloads": Shell("explorer.exe", "shell:Downloads"); break;

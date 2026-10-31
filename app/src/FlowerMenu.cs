@@ -259,16 +259,18 @@ namespace Hinoki
             t.Tick += delegate
             {
                 t.Stop();
+                bool pureFade = style == "fade";
                 IEasingFunction e;
-                if (style == "smooth") e = new CubicEase { EasingMode = EasingMode.EaseOut };
+                if (style == "smooth" || pureFade) e = new CubicEase { EasingMode = EasingMode.EaseOut };
                 else if (style == "elastic") e = new ElasticEase { Oscillations = 2, Springiness = 3.2, EasingMode = EasingMode.EaseOut };
                 else if (style == "bounce") e = new BounceEase { Bounces = 2, Bounciness = 2.4, EasingMode = EasingMode.EaseOut };
+                else if (style == "ripple") e = new BackEase { Amplitude = 0.8, EasingMode = EasingMode.EaseOut };
                 else e = new BackEase { Amplitude = 0.45, EasingMode = EasingMode.EaseOut };
-                var gx = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(460 / sp))) { EasingFunction = e };
-                var gy = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(460 / sp))) { EasingFunction = e };
+                var gx = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds((pureFade ? 10 : 460) / sp))) { EasingFunction = e };
+                var gy = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds((pureFade ? 10 : 460) / sp))) { EasingFunction = e };
                 Scale.BeginAnimation(ScaleTransform.ScaleXProperty, gx);
                 Scale.BeginAnimation(ScaleTransform.ScaleYProperty, gy);
-                var go = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(220 / sp)));
+                var go = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds((style == "ripple" ? 340 : 220) / sp)));
                 BeginAnimation(UIElement.OpacityProperty, go);
             };
             t.Start();
@@ -494,8 +496,9 @@ namespace Hinoki
             _centerGroup.BeginAnimation(OpacityProperty, cgo);
             AnimateScale(cst, 1, (int)(420 / sp), 0.55);
 
+            int step = style == "ripple" ? 90 : 40;
             for (int i = 0; i < _petals.Count; i++)
-                _petals[i].PlayIn(TimeSpan.FromMilliseconds((40 + i * 40) / sp));
+                _petals[i].PlayIn(TimeSpan.FromMilliseconds((55 + i * step) / sp));
         }
 
         public void PlayOut(Action done)

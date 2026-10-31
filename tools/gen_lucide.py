@@ -14,7 +14,10 @@ NAMES = [
     "refresh-cw", "pin", "moon", "calculator", "smile", "gamepad-2", "headphones",
     "activity", "minimize-2", "skip-forward", "skip-back", "message-circle",
     "rotate-cw", "link", "grid-2x2", "sun", "cpu", "sliders-horizontal",
-]
+    "palette", "flower-2", "bell-off", "x", "volume-off", "paintbrush",
+    "calendar", "user", "map-pin", "clock", "mail", "eye", "zap",
+    "shield", "wifi", "speaker", "crown", "wand-sparkles", "scissors",
+    "printer", "hard-drive", "wifi-off", "timer", "notebook-pen" ]
 
 
 def num(tok):

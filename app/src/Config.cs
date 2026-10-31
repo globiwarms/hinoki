@@ -334,7 +334,8 @@ namespace Hinoki
             "open_steam", "open_config", "open_settings",
             "open_downloads", "open_desktop", "open_documents",
             "copy", "monitor_off", "clear_recycle_bin", "open_discord", "open_spotify",
-            "search_start", "notification_center"
+            "search_start", "notification_center",
+            "mute_all", "close_window"
         };
 
         public static readonly string[] Names = new string[]
@@ -347,7 +348,7 @@ namespace Hinoki
             "Play / Pause — музыка",
             "Следующий трек",
             "Предыдущий трек",
-            "Запустить приложение или steam://",
+            "Открыть приложение",
             "Открыть ссылку",
             "Своё сочетание клавиш",
             "Скриншот экрана → в Изображения",
@@ -377,7 +378,9 @@ namespace Hinoki
             "Открыть Discord",
             "Открыть Spotify",
             "Поиск Windows",
-            "Центр уведомлений"
+            "Центр уведомлений",
+            "Тихий режим (микро + звук)",
+            "Закрыть активное окно"
         };
 
         public static string NameOf(string key)

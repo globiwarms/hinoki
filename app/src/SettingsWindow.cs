@@ -227,15 +227,15 @@ namespace Hinoki
             bn.VerticalAlignment = VerticalAlignment.Center;
             bn.Margin = new Thickness(10, 0, 0, 0);
             bn.Children.Add(Glass.Label("Hinoki", 15.5, false, true));
-            bn.Children.Add(Glass.Label("v2.1.1", 10, true));
+            bn.Children.Add(Glass.Label("v2.2.0", 10, true));
             brand.Children.Add(bn);
             Grid.SetRow(brand, 0);
             rail.Children.Add(brand);
 
             var nav = new StackPanel();
             nav.Margin = new Thickness(0, 26, 0, 0);
-            AddRailItem(nav, "settings", "Лепестки", "petals");
-            AddRailItem(nav, "palette", "Внешний вид", "look");
+            AddRailItem(nav, "flower-2", "Лепестки", "petals");
+            AddRailItem(nav, "paintbrush", "Внешний вид", "look");
             AddRailItem(nav, "volume-2", "Звуки", "sounds");
             AddRailItem(nav, "sliders-horizontal", "Поведение", "behavior");
             AddRailItem(nav, "info", "О программе", "about");
@@ -254,10 +254,11 @@ namespace Hinoki
         {
             switch (key)
             {
-                case "look": return "palette";
+                case "look": return "paintbrush";
                 case "sounds": return "volume-2";
                 case "behavior": return "sliders-horizontal";
                 case "about": return "info";
+                case "petals": return "flower-2";
                 default: return "settings";
             }
         }
@@ -1028,8 +1029,8 @@ namespace Hinoki
             stack.Children.Add(Setting("Размер меню", null, AttachSlider(sizeSlider, sizeVal)));
             stack.Children.Add(Sep());
 
-            var entranceItems = new List<string> { "Пружина (живой)", "Плавно", "Эластик", "Отскок", "Мгновенно" };
-            var entranceMap = new[] { "spring", "smooth", "elastic", "bounce", "instant" };
+            var entranceItems = new List<string> { "Пружина (живой)", "Плавно", "Эластик", "Отскок", "Волна", "Только fade", "Мгновенно" };
+            var entranceMap = new[] { "spring", "smooth", "elastic", "bounce", "ripple", "fade", "instant" };
             int curEntr = Array.IndexOf(entranceMap, cfgApp.EntranceStyle);
             var entranceDrop = new GlassDropDown(entranceItems, curEntr < 0 ? 0 : curEntr);
             entranceDrop.MinWidth = 190;
@@ -1303,7 +1304,7 @@ namespace Hinoki
             name.Margin = new Thickness(0, 14, 0, 0);
             stack.Children.Add(name);
 
-            var ver = Glass.Label("Версия 2.1.1 · Windows 10/11", 12, true);
+            var ver = Glass.Label("Версия 2.2.0 · Windows 10/11", 12, true);
             ver.HorizontalAlignment = HorizontalAlignment.Center;
             ver.Margin = new Thickness(0, 3, 0, 0);
             stack.Children.Add(ver);

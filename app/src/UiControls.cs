@@ -329,6 +329,7 @@ namespace Hinoki
             _label = new TextBlock();
             _label.FontFamily = Ui.Text;
             _label.FontSize = 13.5;
+            _label.Foreground = Ui.Solid(Ui.Ink, 0.95);
             _label.VerticalAlignment = VerticalAlignment.Center;
             _label.Margin = new Thickness(11, 9, 30, 10);
             _label.TextTrimming = TextTrimming.CharacterEllipsis;
