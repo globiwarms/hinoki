@@ -46,19 +46,20 @@ def api(method, path, tok, payload=None, raw=None, content_type=None):
 
 NL = chr(10)
 RELEASE_12_BODY = NL.join([
-    "## 檜 Hinoki v2.5.0",
+    "## 檜 Hinoki v2.6.0",
     "",
-    "### Иконки починены",
-    "- Все Lucide-иконки теперь рендерятся с **постоянной толщиной линии** на любом размере — исчезли неровные «палочки»",
+    "### Новые действия (43 всего)",
+    "- **Вставить как обычный текст** (Ctrl+Shift+V) — без форматирования",
+    "- **Очистить буфер обмена** — с glass-тостом подтверждения",
+    "- **Перезапустить Проводник** — когда Windows завис",
     "",
-    "### Живой цветок",
-    "- Лепестки слегка парят, пока меню открыто — у каждого своя фаза",
-    "- Наведение пружинит (мягкий отскок)",
-    "- Звук затвора у скриншотов",
+    "### Полировка",
+    "- Шестерёнка в центре цветка **вращается на 45°** при наведении",
+    "- Превью в настройках перестраивается с задержкой 90 мс — слайдеры больше не грузят интерфейс",
+    "- Своё трёхнотное звучание у диалога подтверждения",
     "",
-    "**Full Changelog**: https://github.com/arseniyru90-afk/hinoki/compare/v2.4.0...v2.5.0",
+    "**Full Changelog**: https://github.com/arseniyru90-afk/hinoki/compare/v2.5.0...v2.6.0",
 ])
-
 if __name__ == "__main__":
     cmd = sys.argv[1]
     tok = token()
@@ -73,11 +74,11 @@ if __name__ == "__main__":
         print(status, body.get("full_name") if isinstance(body, dict) else body)
         if isinstance(body, dict) and body.get("full_name"):
             print("URL:", body["html_url"])
-    elif cmd == "release250":
+    elif cmd == "release260":
         status, rel = api("POST", "/repos/" + REPO + "/releases", tok, {
-            "tag_name": "v2.5.0",
+            "tag_name": "v2.6.0",
             "target_commitish": "main",
-            "name": "Hinoki v2.5.0 — ровные иконки, живые лепестки",
+            "name": "Hinoki v2.6.0 — новые действия, вращающаяся шестерёнка, оптимизация",
             "body": RELEASE_12_BODY,
             "draft": False,
             "prerelease": False,
