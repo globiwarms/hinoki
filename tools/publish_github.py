@@ -7,6 +7,7 @@ import urllib.request
 
 API = "https://api.github.com"
 REPO = "arseniyru90-afk/hinoki"
+REPO_ID = "1440128512"
 
 
 def token():
@@ -37,7 +38,8 @@ def api(method, path, tok, payload=None, raw=None, content_type=None):
     elif payload is not None:
         req.add_header("Content-Type", "application/json")
     try:
-        with urllib.request.urlopen(req) as r:
+        opener = urllib.request.build_opener(urllib.request.HTTPRedirectHandler())
+        with opener.open(req) as r:
             body = r.read()
             return r.status, json.loads(body) if body else None
     except urllib.error.HTTPError as e:
@@ -60,7 +62,7 @@ RELEASE_12_BODY = NL.join([
     "### Установка",
     "Скачайте `Hinoki.exe` и запустите. Все настройки и лепестки мигрируют автоматически.",
     "",
-    "**Full Changelog**: https://github.com/arseniyru90-afk/hinoki/compare/v2.6.0...v3.0.0",
+    "**Full Changelog**: https://github.com/globiwarms/hinoki/compare/v2.6.0...v3.0.0",
 ])
 
 if __name__ == "__main__":
@@ -78,7 +80,7 @@ if __name__ == "__main__":
         if isinstance(body, dict) and body.get("full_name"):
             print("URL:", body["html_url"])
     elif cmd == "release300":
-        status, rel = api("POST", "/repos/" + REPO + "/releases", tok, {
+        status, rel = api("POST", "/repositories/" + REPO_ID + "/releases", tok, {
             "tag_name": "v3.0.0",
             "target_commitish": "main",
             "name": "Hinoki v3.0.0 — цвета лепестков, бинды, меню питания",

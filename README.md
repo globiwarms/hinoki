@@ -28,9 +28,9 @@
 
 ## Скачать
 
-Берите последний релиз: **[Hinoki.exe](https://github.com/arseniyru90-afk/hinoki/releases/latest/download/Hinoki.exe)**
+Берите последний релиз: **[Hinoki.exe](https://github.com/globiwarms/hinoki/releases/latest/download/Hinoki.exe)**
 
-Сайт проекта: **https://arseniyru90-afk.github.io/hinoki/**
+Сайт проекта: **https://globiwarms.github.io/hinoki/**
 
 ## Как пользоваться
 

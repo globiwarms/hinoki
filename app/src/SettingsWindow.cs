@@ -1403,13 +1403,13 @@ namespace Hinoki
             links.HorizontalAlignment = HorizontalAlignment.Center;
             links.Margin = new Thickness(0, 18, 0, 0);
             var gh = new PillButton("GitHub", false);
-            gh.Clicked += delegate { ActionEngine.OpenLink("https://github.com/arseniyru90-afk/hinoki"); };
+            gh.Clicked += delegate { ActionEngine.OpenLink("https://github.com/globiwarms/hinoki"); };
             var site = new PillButton("Сайт", false);
             site.Margin = new Thickness(8, 0, 0, 0);
-            site.Clicked += delegate { ActionEngine.OpenLink("https://arseniyru90-afk.github.io/hinoki/"); };
+            site.Clicked += delegate { ActionEngine.OpenLink("https://globiwarms.github.io/hinoki/"); };
             var upd = new PillButton("Обновления", false);
             upd.Margin = new Thickness(8, 0, 0, 0);
-            upd.Clicked += delegate { ActionEngine.OpenLink("https://github.com/arseniyru90-afk/hinoki/releases/latest"); };
+            upd.Clicked += delegate { ActionEngine.OpenLink("https://github.com/globiwarms/hinoki/releases/latest"); };
             links.Children.Add(gh);
             links.Children.Add(site);
             links.Children.Add(upd);
