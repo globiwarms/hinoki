@@ -51,9 +51,9 @@ namespace Hinoki
         TextBlock _status;
         FlowerMenu _preview;
         List<Border> _rail = new List<Border>();
+        List<ContentControl> _railGlyphs = new List<ContentControl>();
         Dictionary<string, FrameworkElement> _pages = new Dictionary<string, FrameworkElement>();
         ContentControl _pageHost;
-        GlassDropDown _actionDrop;
         GlassTextBox _iconSearch;
         WrapPanel _iconPanel;
         TextBlock _pageTitle;
@@ -69,6 +69,7 @@ namespace Hinoki
             AllowsTransparency = true;
             Background = Brushes.Transparent;
             ResizeMode = ResizeMode.CanResize;
+            Topmost = true; // settings must be reachable even over fullscreen games
             Left = Math.Max(0, (SystemParameters.WorkArea.Width - Width) / 2 + SystemParameters.WorkArea.Left);
             Top = Math.Max(0, (SystemParameters.WorkArea.Height - Height) / 2 + SystemParameters.WorkArea.Top);
             PreviewKeyDown += delegate(object s, KeyEventArgs e)
@@ -129,24 +130,6 @@ namespace Hinoki
                 _instance = null;
                 MouseHook.Suppressed = false;
             };
-            Loaded += delegate
-            {
-                var t = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
-                t.Tick += delegate
-                {
-                    t.Stop();
-                    try
-                    {
-                        if (_actionDrop != null)
-                        {
-                            var pt = _actionDrop.PointToScreen(new Point(_actionDrop.ActualWidth / 2, _actionDrop.ActualHeight / 2));
-                            OverlayWindow.Log(string.Format("DROPDOWNPOS {0:0} {1:0}", pt.X, pt.Y));
-                        }
-                    }
-                    catch { }
-                };
-                t.Start();
-            };
             MouseLeftButtonDown += delegate
             {
                 if (Mouse.GetPosition(_chrome).Y < 64) DragMove();
@@ -195,18 +178,18 @@ namespace Hinoki
             bn.VerticalAlignment = VerticalAlignment.Center;
             bn.Margin = new Thickness(10, 0, 0, 0);
             bn.Children.Add(Glass.Label("Hinoki", 15.5, false, true));
-            bn.Children.Add(Glass.Label("v1.3.0", 10, true));
+            bn.Children.Add(Glass.Label("v1.3.1", 10, true));
             brand.Children.Add(bn);
             Grid.SetRow(brand, 0);
             rail.Children.Add(brand);
 
             var nav = new StackPanel();
             nav.Margin = new Thickness(0, 26, 0, 0);
-            AddRailItem(nav, 0xE713, "Лепестки", "petals");
-            AddRailItem(nav, 0xE790, "Внешний вид", "look");
-            AddRailItem(nav, 0xE767, "Звуки", "sounds");
-            AddRailItem(nav, 0xE70F, "Поведение", "behavior");
-            AddRailItem(nav, 0xE946, "О программе", "about");
+            AddRailItem(nav, "settings", "Лепестки", "petals");
+            AddRailItem(nav, "palette", "Внешний вид", "look");
+            AddRailItem(nav, "volume-2", "Звуки", "sounds");
+            AddRailItem(nav, "sliders-horizontal", "Поведение", "behavior");
+            AddRailItem(nav, "info", "О программе", "about");
             Grid.SetRow(nav, 1);
             rail.Children.Add(nav);
 
@@ -218,7 +201,19 @@ namespace Hinoki
             return rail;
         }
 
-        void AddRailItem(StackPanel nav, int glyph, string label, string key)
+        string RailIcon(string key)
+        {
+            switch (key)
+            {
+                case "look": return "palette";
+                case "sounds": return "volume-2";
+                case "behavior": return "sliders-horizontal";
+                case "about": return "info";
+                default: return "settings";
+            }
+        }
+
+        void AddRailItem(StackPanel nav, string glyph, string label, string key)
         {
             var item = new Border();
             item.CornerRadius = new CornerRadius(10);
@@ -229,13 +224,13 @@ namespace Hinoki
 
             var sp = new StackPanel();
             sp.Orientation = Orientation.Horizontal;
-            var ic = new TextBlock();
-            ic.Text = ((char)glyph).ToString();
-            ic.FontFamily = Ui.Icons;
-            ic.FontSize = 14;
-            ic.Foreground = key == "petals" ? Ui.Solid(Ui.Accent, 1) : Ui.Solid(Ui.InkDim, 1);
-            ic.VerticalAlignment = VerticalAlignment.Center;
-            sp.Children.Add(ic);
+            var ic = LucideHost.Build(glyph, 15, false);
+            var icHost = new ContentControl();
+            icHost.Content = ic;
+            icHost.Width = 16; icHost.Height = 16;
+            icHost.VerticalAlignment = VerticalAlignment.Center;
+            _railGlyphs.Add(icHost);
+            sp.Children.Add(icHost);
             var t = Glass.Label(label, 13, false, true);
             t.Margin = new Thickness(11, 0, 0, 0);
             t.VerticalAlignment = VerticalAlignment.Center;
@@ -260,8 +255,10 @@ namespace Hinoki
             {
                 bool active = keys[i] == key;
                 _rail[i].Background = active ? Ui.Solid(Ui.Accent, 0.22) : Brushes.Transparent;
-                var ic = (TextBlock)((StackPanel)_rail[i].Child).Children[0];
-                ic.Foreground = active ? Ui.Solid(Ui.Accent, 1) : Ui.Solid(Ui.InkDim, 1);
+                _railGlyphs[i].Content = LucideHost.Build(RailIcon(keys[i]), 15, false);
+                var host = (ContentControl)((StackPanel)_rail[i].Child).Children[0];
+                var pathEl = (System.Windows.Shapes.Path)((Canvas)((Viewbox)host.Content).Child).Children[0];
+                pathEl.Stroke = active ? Ui.Solid(Ui.Accent, 1) : Ui.Solid(Ui.InkDim, 1);
             }
             if (_pageTitle != null) _pageTitle.Text = PageTitle(key);
             FrameworkElement page;
@@ -444,52 +441,54 @@ namespace Hinoki
 
         static readonly string[][] IconLibrary = new string[][]
         {
-            new[] { "E713", "настройки gear settings шестерёнка" },
-            new[] { "E720", "микрофон микрофон mic звукозапись" },
-            new[] { "E74F", "мут выкл off mute тише" },
-            new[] { "E767", "звук громкость volume speaker динамик" },
-            new[] { "E768", "play играть музыка старт пуск" },
-            new[] { "E769", "pause пауза стоп stop" },
-            new[] { "E76E", "эмодзи смайл emoji smile" },
-            new[] { "E70F", "редактировать карандаш edit pencil правка" },
-            new[] { "E721", "поиск search лупа найти" },
-            new[] { "E722", "камера фото camera photo снимок" },
-            new[] { "E72C", "обновить refresh перезагрузка заново" },
-            new[] { "E72E", "замок блокировка lock закрыть" },
-            new[] { "E734", "звезда favorite star избранное лайк" },
-            new[] { "E73E", "галочка check done готово" },
-            new[] { "E74D", "корзина delete удалить мусор bin" },
-            new[] { "E74E", "сохранить save дискета" },
-            new[] { "E765", "клавиатура keyboard" },
-            new[] { "E774", "глобус интернет globe web сеть" },
-            new[] { "E77B", "контакт человек contact user" },
-            new[] { "E787", "календарь calendar дата" },
-            new[] { "E790", "палитра цвет paint palette краска" },
-            new[] { "E7A5", "скриншот crop обрезка снимок" },
-            new[] { "E7BE", "флаг flag метка" },
-            new[] { "E7C3", "страница page документ бумага" },
-            new[] { "E7E7", "звонок уведомление ringer bell колокольчик" },
-            new[] { "E7E8", "питание power выключить on off" },
-            new[] { "E7F4", "монитор экран tv display дисплей" },
-            new[] { "E896", "скачать download стрелка вниз загрузка" },
-            new[] { "E898", "загрузить upload вверх экспорт" },
-            new[] { "E892", "следующий next трек media вперёд" },
-            new[] { "E8A5", "документ document файл file текст" },
-            new[] { "E8A9", "открыть файл openfile" },
-            new[] { "E8B7", "папка folder директория" },
-            new[] { "E8BD", "сообщение message чат comment" },
-            new[] { "E8C8", "копировать copy" },
-            new[] { "E8D6", "музыка нота music note трек" },
-            new[] { "E8EF", "калькулятор calculator посчитать" },
-            new[] { "E8FB", "обновить refresh цикл" },
-            new[] { "E946", "информация info сведения" },
-            new[] { "E9CE", "наушники headphones гарнитура звук" },
-            new[] { "E9D9", "диагностика tools debug wrench" },
-            new[] { "EA3A", "рабочий стол desktop монитор экран" },
-            new[] { "EA80", "игры game геймпад контроллер" },
-            new[] { "E71D", "приложения apps грид все программы" },
-            new[] { "E71B", "ссылка link цепь url адрес" },
-            new[] { "E80F", "список list строки" }
+            new[] { "mic", "микрофон микрофон mic звукозапись" },
+            new[] { "mic-off", "микрофон выкл mic-off мут" },
+            new[] { "volume-2", "звук громкость volume динамик" },
+            new[] { "volume-1", "звук тише volume маленький" },
+            new[] { "volume-x", "звук выкл мут volume-x" },
+            new[] { "play", "play играть пуск музыка старт" },
+            new[] { "pause", "пауза pause стоп" },
+            new[] { "music", "музыка нота music трек" },
+            new[] { "skip-forward", "следующий трек next вперёд" },
+            new[] { "skip-back", "предыдущий трек prev назад" },
+            new[] { "app-window", "приложение окно app программа" },
+            new[] { "link-2", "ссылка link адрес url цепь" },
+            new[] { "settings", "настройки gear шестерёнка settings" },
+            new[] { "folder", "папка folder директория" },
+            new[] { "folder-open", "папка открыта открыть folder" },
+            new[] { "keyboard", "клавиатура keyboard" },
+            new[] { "globe", "глобус интернет globe web сеть" },
+            new[] { "star", "звезда star избранное лайк" },
+            new[] { "lock", "замок lock блокировка закрыть" },
+            new[] { "camera", "камера фото camera снимок скриншот" },
+            new[] { "image", "изображение картинка image фото" },
+            new[] { "crop", "скриншот обрезка crop выделить" },
+            new[] { "search", "поиск найти search лупа" },
+            new[] { "bell", "уведомление колокольчик bell звонок" },
+            new[] { "download", "скачать download загрузка вниз" },
+            new[] { "upload", "загрузить upload вверх экспорт" },
+            new[] { "copy", "копировать copy" },
+            new[] { "clipboard", "буфер clipboard вставить" },
+            new[] { "trash-2", "корзина удалить мусор trash bin" },
+            new[] { "power", "питание power выключить" },
+            new[] { "moon", "луна сон ночь спящий moon" },
+            new[] { "monitor", "монитор экран desktop дисплей" },
+            new[] { "monitor-off", "монитор выкл погасить экран" },
+            new[] { "pin", "закрепить pin поверх булавка" },
+            new[] { "refresh-cw", "обновить refresh заново" },
+            new[] { "rotate-cw", "перезагрузка rotate поворот" },
+            new[] { "calculator", "калькулятор calculator посчитать" },
+            new[] { "smile", "смайл эмодзи smile улыбка" },
+            new[] { "gamepad-2", "геймпад игра game steam" },
+            new[] { "headphones", "наушники headphones гарнитура" },
+            new[] { "activity", "диспетчер activity пульс задачи" },
+            new[] { "minimize-2", "свернуть minimize окно" },
+            new[] { "message-circle", "сообщение чат message discord" },
+            new[] { "file-text", "документ файл текст file текстовый" },
+            new[] { "grid-2x2", "приложения сетка grid все" },
+            new[] { "sliders-horizontal", "ползунки sliders поведение настройки" },
+            new[] { "palette", "палитра palette краски цвет" },
+            new[] { "info", "информация info сведения" }
         };
 
         // ================= petals =================
@@ -595,14 +594,21 @@ namespace Hinoki
                 var g = new Grid();
                 g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                var ic = new TextBlock();
-                ic.Text = Ui.Glyph(p.Icon).ToString();
-                ic.FontFamily = Ui.Icons;
-                ic.FontSize = 13.5;
-                ic.Foreground = sel ? Ui.Solid(Ui.Accent, 1) : Ui.Solid(Ui.InkDim, 1);
-                ic.VerticalAlignment = VerticalAlignment.Center;
-                Grid.SetColumn(ic, 0);
-                g.Children.Add(ic);
+                var ic = LucideHost.Build(p.Action == "app" && !string.IsNullOrEmpty(p.Target) ? "app-window" : p.Icon, 14, false);
+                var icHost = new ContentControl();
+                icHost.Content = ic;
+                icHost.Width = 15; icHost.Height = 15;
+                icHost.VerticalAlignment = VerticalAlignment.Center;
+                var icBorder = new Border();
+                icBorder.Child = icHost;
+                Grid.SetColumn(icBorder, 0);
+                g.Children.Add(icBorder);
+                System.Action tint = delegate
+                {
+                    var pathEl = (System.Windows.Shapes.Path)((Canvas)((Viewbox)icHost.Content).Child).Children[0];
+                    pathEl.Stroke = sel ? Ui.Solid(Ui.Accent, 1) : Ui.Solid(Ui.InkDim, 1);
+                };
+                tint();
                 var t = Glass.Label(string.IsNullOrEmpty(p.Label) ? "Лепесток " + (i + 1) : p.Label, 12.5, false, sel);
                 t.Margin = new Thickness(10, 0, 0, 0);
                 t.VerticalAlignment = VerticalAlignment.Center;
@@ -666,6 +672,7 @@ namespace Hinoki
                     string tags = def[1];
                     if (q.Length > 0 && !tags.Contains(q) && !def[0].ToLowerInvariant().Contains(q)) continue;
                     var gl = def[0];
+                    if (shown < 3) OverlayWindow.Log("TILE " + gl + " hasLucide=" + Lucide.Has(gl));
                     var tile = new IconTile(gl);
                     tile.Picked += delegate (string g)
                     {
@@ -798,6 +805,12 @@ namespace Hinoki
                 case "discord_deafen":
                     _editor.Children.Add(Note("Поднимет Discord и отправит «" + HotkeyBox.PrettyCombo(App.Config.DiscordDeafenKeys) + "». Сочетание — в разделе «Поведение»."));
                     break;
+                case "mic_toggle":
+                    _editor.Children.Add(Note("Общий микрофон системы. Нажмите на лепесток — состояние переключится, лепесток подсветится красным, пока микрофон выключен."));
+                    break;
+                case "volume_mute":
+                    _editor.Children.Add(Note("Общий звук системы. Лепесток подсвечивается красным, пока звук выключен."));
+                    break;
                 case "media":
                     _editor.Children.Add(Note("Play / Pause для Spotify, YouTube Music и других плееров."));
                     break;
@@ -824,38 +837,6 @@ namespace Hinoki
         {
             var stack = new StackPanel();
             var cfgApp = App.Config;
-
-            stack.Children.Add(Section("Акцентный цвет"));
-            var swatches = new StackPanel();
-            swatches.Orientation = Orientation.Horizontal;
-            swatches.Margin = new Thickness(2, 2, 0, 0);
-            swatches.MaxWidth = 620;
-            string[] palette = { "A8B899", "7FD8BE", "A8B4E8", "E8B4A0", "E89E9E", "9ED0F0", "E8D5A0", "C9A0E8", "F2A6C2", "C4E88C", "E8C89A", "9AE8CF", "B8A8E8", "8CD8B4", "D8D88C", "E89E6C" };
-            foreach (var hex in palette)
-            {
-                var sw = new Border();
-                sw.Width = 30; sw.Height = 30;
-                sw.CornerRadius = new CornerRadius(15);
-                sw.Margin = new Thickness(0, 0, 8, 8);
-                sw.Cursor = Cursors.Hand;
-                byte r = Convert.ToByte(hex.Substring(0, 2), 16);
-                byte g = Convert.ToByte(hex.Substring(2, 2), 16);
-                byte b = Convert.ToByte(hex.Substring(4, 2), 16);
-                sw.Background = Ui.Solid(Color.FromRgb(r, g, b), 1);
-                bool cur = cfgApp.AccentHex.Equals(hex, StringComparison.OrdinalIgnoreCase);
-                sw.BorderBrush = cur ? Ui.Solid(Colors.White, 0.95) : Ui.Solid(Colors.White, 0.12);
-                sw.BorderThickness = new Thickness(cur ? 3 : 0);
-                var hexCopy = hex;
-                sw.MouseLeftButtonDown += delegate
-                {
-                    App.Config.AccentHex = hexCopy;
-                    App.SaveConfig();
-                    RefreshAccent();
-                    Pulse();
-                };
-                swatches.Children.Add(sw);
-            }
-            stack.Children.Add(swatches);
 
             stack.Children.Add(Section("Меню"));
 
@@ -921,8 +902,8 @@ namespace Hinoki
             stack.Children.Add(Setting("Размер меню", null, AttachSlider(sizeSlider, sizeVal)));
             stack.Children.Add(Sep());
 
-            var entranceItems = new List<string> { "Пружина (живой)", "Плавно", "Мгновенно" };
-            var entranceMap = new[] { "spring", "smooth", "instant" };
+            var entranceItems = new List<string> { "Пружина (живой)", "Плавно", "Эластик", "Отскок", "Мгновенно" };
+            var entranceMap = new[] { "spring", "smooth", "elastic", "bounce", "instant" };
             int curEntr = Array.IndexOf(entranceMap, cfgApp.EntranceStyle);
             var entranceDrop = new GlassDropDown(entranceItems, curEntr < 0 ? 0 : curEntr);
             entranceDrop.MinWidth = 190;
@@ -1170,7 +1151,7 @@ namespace Hinoki
             name.Margin = new Thickness(0, 14, 0, 0);
             stack.Children.Add(name);
 
-            var ver = Glass.Label("Версия 1.3.0 · Windows 10/11", 12, true);
+            var ver = Glass.Label("Версия 1.3.1 · Windows 10/11", 12, true);
             ver.HorizontalAlignment = HorizontalAlignment.Center;
             ver.Margin = new Thickness(0, 3, 0, 0);
             stack.Children.Add(ver);

@@ -92,8 +92,19 @@ namespace Hinoki
 
             _flower.PetalActivated += delegate (int i)
             {
-                Sounds.Play("click");
-                ActionEngine.Run(App.Config.Petals[i]);
+                var petal = App.Config.Petals[i];
+                bool isToggle = petal.Action == "mic_toggle" || petal.Action == "volume_mute";
+                Sounds.Play(isToggle ? (petal.Action == "mic_toggle" ? (Audio.IsMicMuted() ? "toggle_on" : "toggle_off") : "click") : "click");
+                ActionEngine.Run(petal);
+                if (isToggle)
+                {
+                    // keep the menu open so the state change is visible; refresh tints
+                    if (App.Config.CloseAfterAction == false || true)
+                    {
+                        RefreshToggleStates();
+                        return;
+                    }
+                }
                 if (App.Config.CloseAfterAction) SafeClose();
                 else _flower.ReleasePulseAt(i);
             };
@@ -116,6 +127,7 @@ namespace Hinoki
 
             Show();
             Sounds.Play("open");
+            _flower.RefreshToggleStates();
             _flower.PlayIn();
 
             if (App.Config.AutoCloseSeconds > 0)
@@ -128,6 +140,11 @@ namespace Hinoki
                 };
                 auto.Start();
             }
+        }
+
+        void RefreshToggleStates()
+        {
+            _flower.RefreshToggleStates();
         }
 
         void OnEsc()

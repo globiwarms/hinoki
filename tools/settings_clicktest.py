@@ -78,10 +78,31 @@ def rail_click(index):
 
 subprocess.run(["taskkill", "/f", "/im", "Hinoki.exe"], capture_output=True)
 time.sleep(0.6)
-subprocess.Popen([EXE, "--settings"])
-time.sleep(2.6)
+def process_path_of(hwnd):
+    pid = ctypes.c_ulong()
+    user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+    PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+    k32 = ctypes.windll.kernel32
+    h = k32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid.value)
+    if not h: return "?"
+    buf = ctypes.create_unicode_buffer(520)
+    size = ctypes.c_ulong(520)
+    ok = k32.QueryFullProcessImageNameW(h, 0, buf, ctypes.byref(size))
+    k32.CloseHandle(h)
+    return buf.value if ok else "?"
 
-hwnd = user32.FindWindowW(None, "Hinoki")
+for attempt in range(4):
+    subprocess.run(["powershell", "-NoProfile", "-Command",
+                    "Stop-Process -Name Hinoki -Force -ErrorAction SilentlyContinue"])
+    time.sleep(1.2)
+    subprocess.Popen([EXE, "--settings"])
+    time.sleep(2.6)
+    hwnd = user32.FindWindowW(None, "Hinoki")
+    if hwnd:
+        pp = process_path_of(hwnd)
+        print("settings proc:", pp)
+        if pp.lower() == EXE.lower():
+            break
 assert hwnd, "settings window not found"
 
 
@@ -91,6 +112,9 @@ class WRECT(ctypes.Structure):
 
 wr = WRECT()
 user32.GetWindowRect(hwnd, ctypes.byref(wr))
+user32.SetWindowPos(hwnd, -1, 0, 0, 0, 0, 0x0013)  # HWND_TOPMOST, NOMOVE|NOSIZE|NOACTIVATE
+user32.SetForegroundWindow(hwnd)
+time.sleep(0.3)
 LX, LY = wr.L, wr.T
 WIN_W, WIN_H = wr.R - wr.L, wr.B - wr.T
 print("window at", LX, LY, WIN_W, WIN_H)
@@ -129,12 +153,12 @@ time.sleep(0.4)
 subprocess.run(["taskkill", "/f", "/im", "Hinoki.exe"], capture_output=True)
 time.sleep(0.5)
 cfg["Petals"] = [
-    {"Label": "Мут микро", "Icon": "E720", "Action": "discord_mute", "Target": "", "Args": ""},
-    {"Label": "Мут звука ДС", "Icon": "E767", "Action": "discord_deafen", "Target": "", "Args": ""},
-    {"Label": "Мут ПК", "Icon": "E74F", "Action": "volume_mute", "Target": "", "Args": ""},
-    {"Label": "Музыка", "Icon": "E768", "Action": "media", "Target": "", "Args": ""},
-    {"Label": "Приложение", "Icon": "E71D", "Action": "app", "Target": "", "Args": ""},
-    {"Label": "Ссылка", "Icon": "E71B", "Action": "url", "Target": "", "Args": ""},
+    {"Label": "Микрофон", "Icon": "mic", "Action": "mic_toggle", "Target": "", "Args": ""},
+    {"Label": "Звук", "Icon": "volume-2", "Action": "volume_mute", "Target": "", "Args": ""},
+    {"Label": "Скриншот", "Icon": "camera", "Action": "screenshot_file", "Target": "", "Args": ""},
+    {"Label": "Музыка", "Icon": "play", "Action": "media", "Target": "", "Args": ""},
+    {"Label": "Приложение", "Icon": "app-window", "Action": "app", "Target": "", "Args": ""},
+    {"Label": "Ссылка", "Icon": "link-2", "Action": "url", "Target": "", "Args": ""},
 ]
 json.dump(cfg, open(cfg_path, "w", encoding="utf-8"), ensure_ascii=False)
 subprocess.Popen([EXE])

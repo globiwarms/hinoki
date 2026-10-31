@@ -11,14 +11,46 @@ using System.Windows.Media.Imaging;
 
 namespace Hinoki
 {
+    /// <summary>Extracts and caches application icons for petal targets.</summary>
+    public static class AppIconCache
+    {
+        static readonly Dictionary<string, BitmapImage> Cache = new Dictionary<string, BitmapImage>();
+
+        public static BitmapImage Get(string fullPath)
+        {
+            BitmapImage bi;
+            if (Cache.TryGetValue(fullPath, out bi)) return bi;
+            try
+            {
+                using (var icon = System.Drawing.Icon.ExtractAssociatedIcon(fullPath))
+                using (var bmp = icon.ToBitmap())
+                using (var ms = new System.IO.MemoryStream())
+                {
+                    bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                    bi = new BitmapImage();
+                    bi.BeginInit();
+                    bi.CacheOption = BitmapCacheOption.OnLoad;
+                    bi.StreamSource = new System.IO.MemoryStream(ms.ToArray());
+                    bi.EndInit();
+                    bi.Freeze();
+                }
+                Cache[fullPath] = bi;
+                return bi;
+            }
+            catch { return null; }
+        }
+    }
+
     /// <summary>One glass petal with icon + label, hover glow and press feedback.</summary>
     public class PetalView : Border
     {
         public readonly int Index;
         public readonly PetalConfig Config;
         public readonly ScaleTransform Scale = new ScaleTransform(1, 1);
-        Border _shape, _hoverLayer, _ring;
-        TextBlock _icon, _label;
+        Border _shape, _hoverLayer, _ring, _mutedLayer;
+        TextBlock _label;
+        UIElement _iconHost;
+        bool _muted;
 
         public PetalView(int index, PetalConfig cfg, double w, double h)
         {
@@ -63,6 +95,15 @@ namespace Hinoki
             _ring.IsHitTestVisible = false;
             grid.Children.Add(_ring);
 
+            _mutedLayer = new Border();
+            _mutedLayer.CornerRadius = new CornerRadius(r);
+            _mutedLayer.Background = Ui.Solid(Color.FromRgb(0xE5, 0x6C, 0x5C), 0.26);
+            _mutedLayer.BorderBrush = Ui.Solid(Color.FromRgb(0xE5, 0x6C, 0x5C), 0.65);
+            _mutedLayer.BorderThickness = new Thickness(1.2);
+            _mutedLayer.Opacity = 0;
+            _mutedLayer.IsHitTestVisible = false;
+            grid.Children.Add(_mutedLayer);
+
             shapeHost.Child = grid;
 
             // content layer stays horizontal while the shape rotates
@@ -72,12 +113,10 @@ namespace Hinoki
             contentStack.VerticalAlignment = VerticalAlignment.Center;
             contentStack.HorizontalAlignment = HorizontalAlignment.Center;
 
-            _icon = new TextBlock();
-            _icon.Text = Ui.Glyph(cfg.Icon).ToString();
-            _icon.FontFamily = Ui.Icons;
-            _icon.FontSize = Math.Max(17, w * 0.15);
-            _icon.Foreground = light ? Ui.Solid(Color.FromRgb(0x24, 0x2B, 0x1E), 0.95) : Ui.Solid(Colors.White, 0.96);
-            _icon.HorizontalAlignment = HorizontalAlignment.Center;
+            _iconHost = BuildIconHost(cfg, Math.Max(17, w * 0.15));
+            var iconHostWrap = new ContentControl();
+            iconHostWrap.Content = _iconHost;
+            iconHostWrap.HorizontalAlignment = HorizontalAlignment.Center;
 
             _label = new TextBlock();
             _label.Text = cfg.Label;
@@ -91,7 +130,7 @@ namespace Hinoki
             _label.MaxWidth = w * 0.84;
             _label.Visibility = (cfgApp != null && !cfgApp.ShowLabels) ? Visibility.Collapsed : Visibility.Visible;
 
-            contentStack.Children.Add(_icon);
+            contentStack.Children.Add(iconHostWrap);
             contentStack.Children.Add(_label);
             content.Children.Add(contentStack);
 
@@ -113,6 +152,48 @@ namespace Hinoki
         }
 
         public event Action<int> Activated;
+
+        static UIElement MakeIconVisual(string icon, double size, bool light)
+        {
+            return LucideHost.Build(icon, size, light);
+        }
+
+        UIElement BuildIconHost(PetalConfig cfg, double size)
+        {
+            // app icon for "Открыть приложение" with a real file target
+            if (cfg.Action == "app" && !string.IsNullOrWhiteSpace(cfg.Target))
+            {
+                string t = cfg.Target.Trim();
+                string ext = System.IO.Path.GetExtension(t).ToLowerInvariant();
+                if ((ext == ".exe" || ext == ".lnk") && System.IO.File.Exists(Environment.ExpandEnvironmentVariables(t)))
+                {
+                    var img = new Image();
+                    var src = AppIconCache.Get(Environment.ExpandEnvironmentVariables(t));
+                    if (src != null) { img.Source = src; img.Width = size; img.Height = size; return img; }
+                }
+            }
+            return MakeIconVisual(cfg.Icon, size, App.Config != null && App.Config.LightGlass);
+        }
+
+        /// <summary>Rebuild the icon visual (after target/icon changes).</summary>
+        public void RefreshIcon()
+        {
+            var root = (Grid)Child;
+            var content = (Grid)root.Children[1];
+            var stack = (StackPanel)content.Children[0];
+            if (_iconHost != null) stack.Children.Remove(_iconHost);
+            double w = Width;
+            _iconHost = BuildIconHost(Config, Math.Max(17, w * 0.15));
+            stack.Children.Insert(0, _iconHost);
+        }
+
+        /// <summary>Red tint when a toggle action is currently OFF (muted).</summary>
+        public void SetMuted(bool muted)
+        {
+            _muted = muted;
+            if (_mutedLayer == null) return;
+            Animate(_mutedLayer, "Opacity", muted ? 1 : 0, 260);
+        }
 
         /// <summary>Rotate only the glass shape; the icon and label stay horizontal.
         /// The rotation lives on the inner shape (root keeps a clean center-origin scale),
@@ -148,7 +229,7 @@ namespace Hinoki
 
         public void SetData(PetalConfig cfg)
         {
-            _icon.Text = Ui.Glyph(cfg.Icon).ToString();
+            RefreshIcon();
             _label.Text = cfg.Label;
         }
 
@@ -171,6 +252,8 @@ namespace Hinoki
                 t.Stop();
                 IEasingFunction e;
                 if (style == "smooth") e = new CubicEase { EasingMode = EasingMode.EaseOut };
+                else if (style == "elastic") e = new ElasticEase { Oscillations = 2, Springiness = 3.2, EasingMode = EasingMode.EaseOut };
+                else if (style == "bounce") e = new BounceEase { Bounces = 2, Bounciness = 2.4, EasingMode = EasingMode.EaseOut };
                 else e = new BackEase { Amplitude = 0.45, EasingMode = EasingMode.EaseOut };
                 var gx = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(460 / sp))) { EasingFunction = e };
                 var gy = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(460 / sp))) { EasingFunction = e };
@@ -289,29 +372,22 @@ namespace Hinoki
             _centerCircle.Effect = cg;
             _centerCircle.Cursor = Cursors.Hand;
 
-            var gearHost = new Grid();
-            var gear = new TextBlock();
-            gear.Text = ((char)0xE713).ToString();
-            gear.FontFamily = Ui.Icons;
-            gear.FontSize = centerD * 0.34;
-            gear.Foreground = Ui.Solid(Colors.White, 0.97);
-            gear.HorizontalAlignment = HorizontalAlignment.Center;
-            gear.VerticalAlignment = VerticalAlignment.Center;
-            gearHost.Children.Add(gear);
+            var gearHost = new Viewbox();
+            gearHost.Width = centerD * 0.4; gearHost.Height = centerD * 0.4;
+            var gearCanvas = new Canvas();
+            gearCanvas.Width = 24; gearCanvas.Height = 24;
+            var gearPath = new System.Windows.Shapes.Path();
+            gearPath.Data = Lucide.Get("settings");
+            gearPath.Stroke = Ui.Solid(Colors.White, 0.97);
+            gearPath.StrokeThickness = 1.6;
+            gearPath.StrokeLineJoin = PenLineJoin.Round;
+            gearPath.StrokeStartLineCap = PenLineCap.Round;
+            gearPath.StrokeEndLineCap = PenLineCap.Round;
+            gearCanvas.Children.Add(gearPath);
+            gearHost.Child = gearCanvas;
             _centerCircle.Child = gearHost;
 
-            var name = new TextBlock();
-            name.Text = "Настройки";
-            name.FontFamily = Ui.Text;
-            name.FontSize = Math.Max(11, S * 0.023);
-            name.FontWeight = FontWeights.SemiBold;
-            name.Foreground = Ui.Solid(Colors.White, 0.9);
-            name.HorizontalAlignment = HorizontalAlignment.Center;
-            name.Margin = new Thickness(0, 8, 0, 0);
-            name.Visibility = cfg.ShowLabels ? Visibility.Visible : Visibility.Collapsed;
-
             _centerGroup.Children.Add(_centerCircle);
-            _centerGroup.Children.Add(name);
             _centerGroup.RenderTransformOrigin = new Point(0.5, 0);
             var cst = new ScaleTransform(1, 1);
             _centerGroup.RenderTransform = cst;
@@ -332,8 +408,8 @@ namespace Hinoki
                 var h = CenterActivated; if (h != null) h();
             };
 
-            _centerGroup.Width = centerD + S * 0.12;
-            SetLeft(_centerGroup, S / 2 - _centerGroup.Width / 2);
+            _centerGroup.Width = centerD;
+            SetLeft(_centerGroup, S / 2 - centerD / 2);
             SetTop(_centerGroup, S / 2 - centerD / 2);
             Children.Add(_centerGroup);
         }
@@ -353,6 +429,17 @@ namespace Hinoki
         {
             for (int i = 0; i < _petals.Count; i++)
                 _petals[i].SetSelected(i == index);
+        }
+
+        public void RefreshToggleStates()
+        {
+            foreach (var pv in _petals)
+            {
+                var a = pv.Config.Action;
+                if (a == "mic_toggle") pv.SetMuted(Audio.IsMicMuted());
+                else if (a == "volume_mute") pv.SetMuted(Audio.IsSystemMuted());
+                else pv.SetMuted(false);
+            }
         }
 
         public void ReleasePulseAt(int index)

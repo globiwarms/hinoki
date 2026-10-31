@@ -105,6 +105,39 @@ namespace Hinoki
                             cfg.AnimationsEnabled = true;
                             cfg.CloseOnOutsideClick = true;
                         }
+                        if (cfg.Version < 6)
+                        {
+                            var emap = new System.Collections.Generic.Dictionary<string, string>
+                            {
+                                { "E720", "mic" }, { "E74F", "volume-x" }, { "E767", "volume-2" },
+                                { "E768", "play" }, { "E769", "pause" }, { "E8D6", "music" },
+                                { "E71D", "app-window" }, { "E71B", "link-2" }, { "E713", "settings" },
+                                { "E8B7", "folder" }, { "E765", "keyboard" }, { "E774", "globe" },
+                                { "E734", "star" }, { "E72E", "lock" }, { "E722", "camera" },
+                                { "E7A5", "crop" }, { "E896", "download" }, { "E898", "upload" },
+                                { "E8A5", "file-text" }, { "E7C3", "file-text" }, { "E74D", "trash-2" },
+                                { "E8C8", "copy" }, { "E7E8", "power" }, { "E72C", "refresh-cw" },
+                                { "E8FB", "refresh-cw" }, { "E946", "info" }, { "E790", "palette" },
+                                { "E76E", "smile" }, { "E7F4", "monitor" }, { "EA3A", "monitor" },
+                                { "E721", "search" }, { "E8A9", "folder-open" }, { "E8BD", "message-circle" },
+                                { "EC4F", "music" }, { "E995", "volume-2" }, { "E994", "volume-1" },
+                                { "E892", "skip-forward" }, { "E921", "minimize-2" }, { "E718", "pin" },
+                                { "E708", "moon" }, { "E777", "rotate-cw" }, { "E9D9", "activity" },
+                                { "E8EF", "calculator" }, { "E77F", "clipboard" }, { "E7FC", "gamepad-2" },
+                                { "E9F9", "monitor" }, { "E7E7", "bell" }, { "E787", "calendar" },
+                                { "E77B", "user" }, { "E716", "user" }, { "E80F", "grid-2x2" },
+                                { "E7A5 ", "crop" }, { "E74E", "file-text" }
+                            };
+                            foreach (var p in cfg.Petals)
+                            {
+                                if (p.Action == "discord_mute") { p.Action = "mic_toggle"; p.Label = "Микрофон"; }
+                                else if (p.Action == "discord_deafen") { p.Action = "screenshot_file"; p.Label = "Скриншот"; }
+                                string newIcon;
+                                if (p.Icon != null && p.Icon.StartsWith("E") && emap.TryGetValue(p.Icon.Trim(), out newIcon))
+                                    p.Icon = newIcon;
+                                else if (p.Icon != null && p.Icon.StartsWith("E")) p.Icon = "settings";
+                            }
+                        }
                         if (cfg.Version < 4)
                         {
                             cfg.CenterOpacity = 92;
@@ -116,7 +149,7 @@ namespace Hinoki
                             cfg.EntranceStyle = "spring";
                             cfg.AutoCloseSeconds = 0;
                         }
-                        cfg.Version = 5;
+                        cfg.Version = 6;
                         cfg.Normalize();
                         return cfg;
                     }
@@ -153,7 +186,7 @@ namespace Hinoki
             if (AnimSpeed > 200) AnimSpeed = 200;
             if (AutoCloseSeconds < 0) AutoCloseSeconds = 0;
             if (AutoCloseSeconds > 30) AutoCloseSeconds = 30;
-            if (EntranceStyle != "spring" && EntranceStyle != "smooth" && EntranceStyle != "instant") EntranceStyle = "spring";
+            if (EntranceStyle != "spring" && EntranceStyle != "smooth" && EntranceStyle != "instant" && EntranceStyle != "elastic" && EntranceStyle != "bounce") EntranceStyle = "spring";
             if (SoundVolume < 0) SoundVolume = 0;
             if (SoundVolume > 100) SoundVolume = 100;
             if (string.IsNullOrEmpty(AccentHex)) AccentHex = "A8B899";
@@ -177,7 +210,7 @@ namespace Hinoki
         public static AppConfig Defaults()
         {
             var c = new AppConfig();
-            c.Version = 5;
+            c.Version = 6;
             c.InterceptClick = true;
             c.ShowAtCursor = true;
             c.CloseAfterAction = true;
@@ -206,12 +239,12 @@ namespace Hinoki
             c.SoundClick = true;
             c.Petals = new List<PetalConfig>
             {
-                new PetalConfig("Мут микро",    "E720", "discord_mute",  "", ""),
-                new PetalConfig("Мут звука ДС", "E767", "discord_deafen","", ""),
-                new PetalConfig("Мут ПК",       "E74F", "volume_mute",   "", ""),
-                new PetalConfig("Музыка",       "E768", "media",         "", ""),
-                new PetalConfig("Приложение",   "E71D", "app",           "", ""),
-                new PetalConfig("Ссылка",       "E71B", "url",           "", "")
+                new PetalConfig("Микрофон", "mic",       "mic_toggle", "", ""),
+                new PetalConfig("Звук",     "volume-2",  "volume_mute", "", ""),
+                new PetalConfig("Скриншот", "camera",    "screenshot_file", "", ""),
+                new PetalConfig("Музыка",   "play",      "media", "", ""),
+                new PetalConfig("Приложение", "app-window", "app", "", ""),
+                new PetalConfig("Ссылка",   "link-2",    "url", "", "")
             };
             return c;
         }
@@ -281,8 +314,8 @@ namespace Hinoki
     {
         public static readonly string[] Keys = new string[]
         {
-            "none", "discord_mute", "discord_deafen",
-            "volume_mute", "volume_up", "volume_down",
+            "none", "mic_toggle", "volume_mute",
+            "volume_up", "volume_down",
             "media", "media_next", "media_prev",
             "app", "url", "hotkey",
             "screenshot_file", "screenshot_buffer", "screenshot_window",
@@ -299,9 +332,8 @@ namespace Hinoki
         public static readonly string[] Names = new string[]
         {
             "Ничего",
-            "Мут микрофона — Discord",
-            "Мут звука — Discord",
-            "Мут звука — вся система",
+            "Микрофон вкл / выкл",
+            "Звук вкл / выкл",
             "Громче",
             "Тише",
             "Play / Pause — музыка",
@@ -311,8 +343,8 @@ namespace Hinoki
             "Открыть ссылку",
             "Своё сочетание клавиш",
             "Скриншот экрана → в Изображения",
-            "Скриншот активного окна → в Изображения",
             "Скриншот области → в буфер",
+            "Скриншот окна → в Изображения",
             "Показать рабочий стол",
             "Свернуть активное окно",
             "Поверх всех окон — переключить",

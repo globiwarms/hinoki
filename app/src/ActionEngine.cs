@@ -27,8 +27,13 @@ namespace Hinoki
         {
             switch (p.Action)
             {
-                case "discord_mute": SendToDiscord(App.Config.DiscordMuteKeys, "Мут микрофона"); break;
-                case "discord_deafen": SendToDiscord(App.Config.DiscordDeafenKeys, "Мут звука"); break;
+                case "mic_toggle":
+                {
+                    bool muted = Audio.IsMicMuted();
+                    Audio.SetMicMuted(!muted);
+                    if (!muted) Report("Hinoki", "Микрофон выключен");
+                    break;
+                }
                 case "volume_mute": TapKey(0xAD); break;            // VK_VOLUME_MUTE
                 case "volume_up": TapKey(0xAF); break;
                 case "volume_down": TapKey(0xAE); break;

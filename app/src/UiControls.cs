@@ -42,6 +42,27 @@ namespace Hinoki
         }
     }
 
+    public static class LucideHost
+    {
+        public static UIElement Build(string name, double size, bool light)
+        {
+            var vb = new Viewbox();
+            vb.Width = size; vb.Height = size;
+            var canvas = new Canvas();
+            canvas.Width = 24; canvas.Height = 24;
+            var path = new System.Windows.Shapes.Path();
+            path.Data = Lucide.Get(name);
+            path.Stroke = light ? Ui.Solid(Color.FromRgb(0x24, 0x2B, 0x1E), 0.95) : Ui.Solid(Colors.White, 0.95);
+            path.StrokeThickness = 1.5;
+            path.StrokeLineJoin = PenLineJoin.Round;
+            path.StrokeStartLineCap = PenLineCap.Round;
+            path.StrokeEndLineCap = PenLineCap.Round;
+            canvas.Children.Add(path);
+            vb.Child = canvas;
+            return vb;
+        }
+    }
+
     // ---------- toggle ----------
 
     public class GlassToggle : Border
@@ -342,73 +363,115 @@ namespace Hinoki
             popup.AllowsTransparency = true;
             popup.PopupAnimation = PopupAnimation.Fade;
 
+            var root = new StackPanel();
+
+            // search box
+            var searchBox = new TextBox();
+            searchBox.FontFamily = Ui.Text;
+            searchBox.FontSize = 13;
+            searchBox.Foreground = Ui.Solid(Ui.Ink, 0.97);
+            searchBox.CaretBrush = Ui.Solid(Ui.Accent, 1);
+            searchBox.Background = Ui.Solid(Colors.White, 0.06);
+            searchBox.BorderBrush = Ui.Solid(Colors.White, 0.10);
+            searchBox.BorderThickness = new Thickness(1);
+            searchBox.Padding = new Thickness(9, 6, 9, 7);
+            searchBox.Margin = new Thickness(6, 6, 6, 4);
+
             var list = new StackPanel();
             list.MinWidth = Math.Max(MinWidth, ActualWidth);
-            for (int i = 0; i < _items.Count; i++)
-            {
-                int idx = i;
-                var row = new Border();
-                row.Padding = new Thickness(12, 8, 12, 9);
-                row.CornerRadius = new CornerRadius(9);
-                row.Margin = new Thickness(5, 2, 5, 2);
-                row.Cursor = Cursors.Hand;
-                var wrap = new StackPanel();
-                wrap.Orientation = Orientation.Horizontal;
-                var mark = new TextBlock();
-                mark.Text = i == _index ? ((char)0xE73E).ToString() : " ";
-                mark.FontFamily = Ui.Icons;
-                mark.FontSize = 11;
-                mark.Width = 18;
-                mark.Foreground = Ui.Solid(Ui.Accent, 1);
-                wrap.Children.Add(mark);
-                var t = new TextBlock();
-                t.Text = _items[i];
-                t.FontFamily = Ui.Text;
-                t.FontSize = 13;
-                t.Foreground = i == _index ? Ui.Solid(Ui.Accent, 1) : Ui.Solid(Ui.Ink, 0.9);
-                wrap.Children.Add(t);
-                row.Child = wrap;
-                row.Background = i == _index ? Ui.Solid(Ui.Accent, 0.12) : Brushes.Transparent;
-                row.MouseEnter += delegate { row.Background = Ui.Solid(Colors.White, 0.08); };
-                row.MouseLeave += delegate { row.Background = i == _index ? Ui.Solid(Ui.Accent, 0.12) : Brushes.Transparent; };
-                row.MouseLeftButtonDown += delegate
-                {
-                    _index = idx;
-                    Render();
-                    // refresh every row's state without closing
-                    for (int j = 0; j < list.Children.Count; j++)
-                    {
-                        var other = (Border)list.Children[j];
-                        var otherText = (StackPanel)other.Child;
-                        var mk = (TextBlock)otherText.Children[0];
-                        var tx = (TextBlock)otherText.Children[1];
-                        bool sel = j == _index;
-                        mk.Text = sel ? ((char)0xE73E).ToString() : " ";
-                        tx.Foreground = sel ? Ui.Solid(Ui.Accent, 1) : Ui.Solid(Ui.Ink, 0.9);
-                        other.Background = sel ? Ui.Solid(Ui.Accent, 0.12) : Brushes.Transparent;
-                    }
-                    if (!KeepOpenOnSelect) popup.IsOpen = false;
-                    if (Changed != null) Changed();
-                };
-                list.Children.Add(row);
-            }
 
-            var host = new Border();
-            host.CornerRadius = new CornerRadius(13);
-            host.Background = Ui.Solid(Color.FromRgb(0x1A, 0x1C, 0x22), 0.98);
-            host.BorderBrush = Ui.Solid(Colors.White, 0.14);
-            host.BorderThickness = new Thickness(1);
-            host.Padding = new Thickness(3, 3, 3, 3);
+            Action refreshSizes = delegate { list.MinWidth = Math.Max(MinWidth, ActualWidth); };
+
+            Action<string> rebuild = delegate(string query)
+            {
+                list.Children.Clear();
+                string q = (query ?? "").Trim().ToLowerInvariant();
+                for (int i = 0; i < _items.Count; i++)
+                {
+                    if (q.Length > 0 && !_items[i].ToLowerInvariant().Contains(q)) continue;
+                    int idx = i;
+                    var row = new Border();
+                    row.Padding = new Thickness(10, 7, 10, 8);
+                    row.CornerRadius = new CornerRadius(9);
+                    row.Margin = new Thickness(5, 2, 5, 2);
+                    row.Cursor = Cursors.Hand;
+                    var wrap = new StackPanel();
+                    wrap.Orientation = Orientation.Horizontal;
+                    var mark = new TextBlock();
+                    mark.Text = idx == _index ? ((char)0xE73E).ToString() : " ";
+                    mark.FontFamily = Ui.Icons;
+                    mark.FontSize = 11;
+                    mark.Width = 18;
+                    mark.Foreground = Ui.Solid(Ui.Accent, 1);
+                    wrap.Children.Add(mark);
+                    var t = new TextBlock();
+                    t.Text = _items[idx];
+                    t.FontFamily = Ui.Text;
+                    t.FontSize = 13;
+                    t.Foreground = idx == _index ? Ui.Solid(Ui.Accent, 1) : Ui.Solid(Ui.Ink, 0.9);
+                    wrap.Children.Add(t);
+                    row.Child = wrap;
+                    row.Background = idx == _index ? Ui.Solid(Ui.Accent, 0.12) : Brushes.Transparent;
+                    row.MouseEnter += delegate { row.Background = Ui.Solid(Colors.White, 0.08); };
+                    row.MouseLeave += delegate { row.Background = idx == _index ? Ui.Solid(Ui.Accent, 0.12) : Brushes.Transparent; };
+                    row.MouseLeftButtonDown += delegate
+                    {
+                        _index = idx;
+                        Render();
+                        for (int j = 0; j < list.Children.Count; j++)
+                        {
+                            var o = list.Children[j] as Border;
+                            if (o == null) continue;
+                            var oText = (StackPanel)o.Child;
+                            var oMark = (TextBlock)oText.Children[0];
+                            var oT = (TextBlock)oText.Children[1];
+                            bool sel = (int)o.Tag == _index;
+                            oMark.Text = sel ? ((char)0xE73E).ToString() : " ";
+                            oT.Foreground = sel ? Ui.Solid(Ui.Accent, 1) : Ui.Solid(Ui.Ink, 0.9);
+                            o.Background = sel ? Ui.Solid(Ui.Accent, 0.12) : Brushes.Transparent;
+                        }
+                        if (!KeepOpenOnSelect) popup.IsOpen = false;
+                        if (Changed != null) Changed();
+                    };
+                    row.Tag = idx;
+                    list.Children.Add(row);
+                }
+                if (list.Children.Count == 0)
+                {
+                    var empty = new TextBlock();
+                    empty.Text = "Ничего не найдено";
+                    empty.FontFamily = Ui.Text;
+                    empty.FontSize = 12.5;
+                    empty.Foreground = Ui.Solid(Ui.InkDim, 1);
+                    empty.Margin = new Thickness(12, 10, 12, 12);
+                    list.Children.Add(empty);
+                }
+            };
+
+            rebuild("");
+            searchBox.TextChanged += delegate { rebuild(searchBox.Text); };
+
             var sv = new ScrollViewer();
             sv.MaxHeight = 330;
             sv.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
             sv.Content = list;
-            host.Child = sv;
+
+            root.Children.Add(searchBox);
+            root.Children.Add(sv);
+
+            var host = new Border();
+            host.CornerRadius = new CornerRadius(13);
+            host.Background = Ui.Solid(Color.FromRgb(0x1A, 0x1C, 0x22), 0.99);
+            host.BorderBrush = Ui.Solid(Colors.White, 0.14);
+            host.BorderThickness = new Thickness(1);
+            host.Padding = new Thickness(3);
+            host.Child = root;
             host.Effect = new DropShadowEffect { Color = Colors.Black, BlurRadius = 34, ShadowDepth = 8, Opacity = 0.5 };
             popup.Child = host;
             _popup = popup;
             popup.Closed += delegate { _popup = null; };
             popup.IsOpen = true;
+            searchBox.Focus();
         }
     }
 
@@ -634,7 +697,7 @@ namespace Hinoki
         bool _selected;
         public readonly string Glyph;
         public event Action<string> Picked;
-        TextBlock _icon;
+        UIElement _icon;
         public static List<IconTile> ActiveGroup = new List<IconTile>();
 
         public IconTile(string glyphHex)
@@ -643,17 +706,13 @@ namespace Hinoki
             Width = 46; Height = 42;
             CornerRadius = new CornerRadius(12);
             Background = Ui.Solid(Colors.White, 0.05);
-            BorderBrush = Ui.Solid(Colors.White, 0.10);
-            BorderThickness = new Thickness(1);
+            BorderThickness = new Thickness(0);
             Cursor = Cursors.Hand;
 
-            _icon = new TextBlock();
-            _icon.Text = Ui.Glyph(glyphHex).ToString();
-            _icon.FontFamily = Ui.Icons;
-            _icon.FontSize = 17;
-            _icon.Foreground = Ui.Solid(Ui.Ink, 0.9);
-            _icon.HorizontalAlignment = HorizontalAlignment.Center;
-            _icon.VerticalAlignment = VerticalAlignment.Center;
+            var iconHost = LucideHost.Build(glyphHex, 20, false);
+            var fe = iconHost as System.Windows.FrameworkElement;
+            if (fe != null) { fe.HorizontalAlignment = HorizontalAlignment.Center; fe.VerticalAlignment = VerticalAlignment.Center; }
+            _icon = iconHost;
             Child = _icon;
 
             MouseLeftButtonDown += delegate
@@ -669,7 +728,6 @@ namespace Hinoki
             _selected = on;
             BorderThickness = new Thickness(0);
             Background = on ? Ui.Solid(Ui.Accent, 0.20) : Ui.Solid(Colors.White, 0.05);
-            _icon.Foreground = on ? Ui.Solid(Ui.Accent, 1) : Ui.Solid(Ui.Ink, 0.9);
         }
     }
 
