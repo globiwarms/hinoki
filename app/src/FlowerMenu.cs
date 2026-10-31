@@ -1,0 +1,624 @@
+// Hinoki — the liquid-glass flower menu (shared by the on-screen overlay and the settings preview)
+using System;
+using System.Collections.Generic;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
+using System.Windows.Media.Imaging;
+
+namespace Hinoki
+{
+    /// <summary>Extracts and caches application icons for petal targets.</summary>
+    public static class AppIconCache
+    {
+        static readonly Dictionary<string, BitmapImage> Cache = new Dictionary<string, BitmapImage>();
+
+        public static BitmapImage Get(string fullPath)
+        {
+            BitmapImage bi;
+            if (Cache.TryGetValue(fullPath, out bi)) return bi;
+            try
+            {
+                using (var icon = System.Drawing.Icon.ExtractAssociatedIcon(fullPath))
+                using (var bmp = icon.ToBitmap())
+                using (var ms = new System.IO.MemoryStream())
+                {
+                    bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                    bi = new BitmapImage();
+                    bi.BeginInit();
+                    bi.CacheOption = BitmapCacheOption.OnLoad;
+                    bi.StreamSource = new System.IO.MemoryStream(ms.ToArray());
+                    bi.EndInit();
+                    bi.Freeze();
+                }
+                Cache[fullPath] = bi;
+                return bi;
+            }
+            catch { return null; }
+        }
+    }
+
+    /// <summary>One glass petal with icon + label, hover glow and press feedback.</summary>
+    public class PetalView : Border
+    {
+        public readonly int Index;
+        public readonly PetalConfig Config;
+        public readonly ScaleTransform Scale = new ScaleTransform(1, 1);
+        readonly TranslateTransform _floatY = new TranslateTransform();
+        readonly TranslateTransform _floatX = new TranslateTransform();
+        Border _shape, _hoverLayer, _ring, _mutedLayer;
+        TextBlock _label;
+        UIElement _iconHost;
+        ContentControl _iconWrap;
+        bool _muted;
+        Border _shapeRef;
+
+        public PetalView(int index, PetalConfig cfg, double w, double h)
+        {
+            Index = index; Config = cfg;
+            Width = w; Height = h;
+            Background = Brushes.Transparent; // hit-test root
+            Cursor = Cursors.Hand;
+
+            var cfgApp = App.Config;
+            double k = cfgApp != null ? cfgApp.PetalOpacity / 100.0 : 1.0;
+            bool light = cfgApp != null && cfgApp.LightGlass;
+            double glow = cfgApp != null ? 0.10 + 0.85 * (cfgApp.GlowStrength / 100.0) : 0.4;
+
+            double round = cfgApp != null ? cfgApp.PetalRoundness / 100.0 : 1.0;
+            double r = Math.Min(h * 0.48, h * 0.48 * round);
+            var shapeHost = new Border();
+            shapeHost.Width = w; shapeHost.Height = h;
+            shapeHost.CornerRadius = new CornerRadius(r);
+            shapeHost.Background = light ? Ui.GlassFill(0.72 * k, 0.42 * k) : Ui.GlassFill(0.26 * k, 0.10 * k);
+            shapeHost.BorderBrush = Ui.Solid(Colors.White, light ? 0.62 : 0.36);
+            shapeHost.BorderThickness = new Thickness(1.2);
+            var glowFx = new DropShadowEffect();
+            glowFx.Color = light ? Colors.Black : Colors.White;
+            glowFx.BlurRadius = 26; glowFx.ShadowDepth = 0; glowFx.Opacity = glow;
+            shapeHost.Effect = glowFx;
+            _shape = shapeHost;
+            _shapeRef = shapeHost;
+
+            var grid = new Grid();
+
+            _hoverLayer = new Border();
+            _hoverLayer.CornerRadius = new CornerRadius(r);
+            _hoverLayer.Background = Ui.Solid(Colors.White, light ? 0.22 : 0.10);
+            _hoverLayer.Opacity = 0;
+            _hoverLayer.IsHitTestVisible = false;
+            grid.Children.Add(_hoverLayer);
+
+            _ring = new Border();
+            _ring.CornerRadius = new CornerRadius(r);
+            _ring.BorderBrush = Ui.Solid(Ui.Accent, 0.9);
+            _ring.BorderThickness = new Thickness(2);
+            _ring.Opacity = 0;
+            _ring.IsHitTestVisible = false;
+            grid.Children.Add(_ring);
+
+            _mutedLayer = new Border();
+            _mutedLayer.CornerRadius = new CornerRadius(r);
+            _mutedLayer.Background = Ui.Solid(Color.FromRgb(0xE5, 0x6C, 0x5C), 0.26);
+            _mutedLayer.BorderBrush = Ui.Solid(Color.FromRgb(0xE5, 0x6C, 0x5C), 0.65);
+            _mutedLayer.BorderThickness = new Thickness(1.2);
+            _mutedLayer.Opacity = 0;
+            _mutedLayer.IsHitTestVisible = false;
+            grid.Children.Add(_mutedLayer);
+
+            shapeHost.Child = grid;
+
+            // content layer stays horizontal while the shape rotates
+            var content = new Grid();
+            content.Background = Brushes.Transparent;
+            var contentStack = new StackPanel();
+            contentStack.VerticalAlignment = VerticalAlignment.Center;
+            contentStack.HorizontalAlignment = HorizontalAlignment.Center;
+
+            _iconHost = BuildIconHost(cfg, Math.Max(17, w * 0.15));
+            _iconWrap = new ContentControl();
+            _iconWrap.Content = _iconHost;
+            _iconWrap.HorizontalAlignment = HorizontalAlignment.Center;
+
+            _label = new TextBlock();
+            _label.Text = cfg.Label;
+            _label.FontFamily = Ui.Text;
+            _label.FontSize = Math.Max(11, w * 0.072);
+            _label.FontWeight = FontWeights.SemiBold;
+            _label.Foreground = light ? Ui.Solid(Color.FromRgb(0x24, 0x2B, 0x1E), 0.92) : Ui.Solid(Colors.White, 0.93);
+            _label.HorizontalAlignment = HorizontalAlignment.Center;
+            _label.Margin = new Thickness(0, w * 0.05, 0, 0);
+            _label.TextTrimming = TextTrimming.CharacterEllipsis;
+            _label.MaxWidth = w * 0.84;
+            _label.Visibility = (cfgApp != null && !cfgApp.ShowLabels) ? Visibility.Collapsed : Visibility.Visible;
+
+            contentStack.Children.Add(_iconWrap);
+            contentStack.Children.Add(_label);
+            content.Children.Add(contentStack);
+
+            var root = new Grid();
+            root.Children.Add(shapeHost);
+            root.Children.Add(content);
+            Child = root;
+
+            RenderTransformOrigin = new Point(0.5, 0.5);
+            var rootTg = new TransformGroup();
+            rootTg.Children.Add(Scale);
+            rootTg.Children.Add(_floatY);
+            RenderTransform = rootTg;
+
+            MouseEnter += delegate { Hover(true); };
+            MouseLeave += delegate { Hover(false); };
+            MouseLeftButtonDown += delegate
+            {
+                Press();
+                var handler = Activated; if (handler != null) handler(Index);
+            };
+        }
+
+        public event Action<int> Activated;
+
+        static UIElement MakeIconVisual(string icon, double size, bool light)
+        {
+            var path = new System.Windows.Shapes.Path();
+            path.Data = Lucide.Get(icon);
+            path.Stretch = Stretch.Uniform;
+            path.Stroke = light ? Ui.Solid(Color.FromRgb(0x24, 0x2B, 0x1E), 0.95) : Ui.Solid(Colors.White, 0.97);
+            path.StrokeThickness = 1.5;
+            path.StrokeLineJoin = PenLineJoin.Round;
+            path.StrokeStartLineCap = PenLineCap.Round;
+            path.StrokeEndLineCap = PenLineCap.Round;
+            path.Width = size; path.Height = size;
+            path.HorizontalAlignment = HorizontalAlignment.Center;
+            path.VerticalAlignment = VerticalAlignment.Center;
+            return path;
+        }
+
+        UIElement BuildIconHost(PetalConfig cfg, double size)
+        {
+            // app icon for "Открыть приложение" with a real file target
+            if (cfg.Action == "app" && !string.IsNullOrWhiteSpace(cfg.Target))
+            {
+                string t = cfg.Target.Trim();
+                string ext = System.IO.Path.GetExtension(t).ToLowerInvariant();
+                if ((ext == ".exe" || ext == ".lnk") && System.IO.File.Exists(Environment.ExpandEnvironmentVariables(t)))
+                {
+                    var img = new Image();
+                    var src = AppIconCache.Get(Environment.ExpandEnvironmentVariables(t));
+                    if (src != null) { img.Source = src; img.Width = size; img.Height = size; return img; }
+                }
+            }
+            return MakeIconVisual(cfg.Icon, size, App.Config != null && App.Config.LightGlass);
+        }
+
+        /// <summary>Rebuild the icon visual (after target/icon changes).</summary>
+        public void RefreshIcon()
+        {
+            var root = (Grid)Child;
+            var content = (Grid)root.Children[1];
+            var stack = (StackPanel)content.Children[0];
+            // remove the OLD wrapper (it still holds the previous icon visual)
+            if (_iconWrap != null)
+            {
+                stack.Children.Remove(_iconWrap);
+                _iconWrap = null;
+            }
+            double w = Width;
+            _iconHost = BuildIconHost(Config, Math.Max(17, w * 0.15));
+            _iconWrap = new ContentControl();
+            _iconWrap.Content = _iconHost;
+            _iconWrap.HorizontalAlignment = HorizontalAlignment.Center;
+            stack.Children.Insert(0, _iconWrap);
+        }
+
+        /// <summary>Red tint when a toggle action is currently OFF (muted).</summary>
+        public void SetMuted(bool muted)
+        {
+            _muted = muted;
+            if (_mutedLayer == null) return;
+            Animate(_mutedLayer, "Opacity", muted ? 1 : 0, 260);
+        }
+
+        /// <summary>Rotate only the glass shape; the icon and label stay horizontal.
+        /// The rotation lives on the inner shape (root keeps a clean center-origin scale),
+        /// otherwise RenderTransformOrigin compounds with the group and petals drift off-orbit.</summary>
+        public void RotateShape(double theta)
+        {
+            RenderTransform = Scale; // scale around RenderTransformOrigin (0.5, 0.5)
+            // only the inner glass shape rotates — the content layer is separate and stays horizontal
+            _shape.RenderTransform = new RotateTransform(theta, Width / 2, Height / 2);
+        }
+
+        /// <summary>Gentle perpetual float — the glass feels alive.</summary>
+        public void StartFloat(int index)
+        {
+            if (App.Config != null && !App.Config.AnimationsEnabled) return;
+            var a = new DoubleAnimation(-2.2, new Duration(TimeSpan.FromMilliseconds(2400 + index * 260)));
+            a.AutoReverse = true;
+            a.RepeatBehavior = RepeatBehavior.Forever;
+            a.EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut };
+            var b = new DoubleAnimation(2.2, new Duration(TimeSpan.FromMilliseconds(2400 + index * 260)));
+            b.AutoReverse = true;
+            b.RepeatBehavior = RepeatBehavior.Forever;
+            b.EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut };
+            _floatY.BeginAnimation(TranslateTransform.YProperty, a);
+            _floatX.BeginAnimation(TranslateTransform.XProperty, b);
+        }
+
+        void Hover(bool on)
+        {
+            Animate(_hoverLayer, "Opacity", on ? 1 : 0, 200);
+            AnimateScale(Scale, on ? 1.035 : 1, 260);
+        }
+
+        void Press()
+        {
+            AnimateScale(Scale, 1.09, 110);
+        }
+
+        public void ReleasePulse()
+        {
+            AnimateScale(Scale, 1.0, 260);
+        }
+
+        public void SetSelected(bool sel)
+        {
+            Animate(_ring, "Opacity", sel ? 1 : 0, 180);
+            if (sel) _label.Foreground = Ui.Solid(Ui.Accent, 1);
+        }
+
+        public void SetData(PetalConfig cfg)
+        {
+            RefreshIcon();
+            RefreshTint(cfg);
+            _label.Text = cfg.Label;
+        }
+
+        /// <summary>Apply per-petal tint color ("" = default glass).</summary>
+        public void RefreshTint(PetalConfig cfg)
+        {
+            var cfgApp = App.Config;
+            double k = cfgApp != null ? cfgApp.PetalOpacity / 100.0 : 1.0;
+            bool light = cfgApp != null && cfgApp.LightGlass;
+            Color tint;
+            bool custom = Ui.TryParseHex(cfg.Color, out tint);
+            if (_shapeRef == null) return;
+            if (custom)
+            {
+                var g = new LinearGradientBrush();
+                g.StartPoint = new Point(0, 0); g.EndPoint = new Point(0, 1);
+                g.GradientStops.Add(new GradientStop(Color.FromArgb((byte)(115 * k), tint.R, tint.G, tint.B), 0));
+                g.GradientStops.Add(new GradientStop(Color.FromArgb((byte)(60 * k), tint.R, tint.G, tint.B), 1));
+                g.Freeze();
+                _shapeRef.Background = g;
+                _shapeRef.BorderBrush = Ui.Solid(tint, 0.62);
+            }
+            else
+            {
+                _shapeRef.Background = light ? Ui.GlassFill(0.72 * k, 0.42 * k) : Ui.GlassFill(0.26 * k, 0.10 * k);
+                _shapeRef.BorderBrush = Ui.Solid(Colors.White, light ? 0.62 : 0.36);
+            }
+        }
+
+        public void PlayIn(TimeSpan delay)
+        {
+            var cfgApp = App.Config;
+            string style = cfgApp != null ? cfgApp.EntranceStyle : "spring";
+            if (cfgApp != null && (!cfgApp.AnimationsEnabled || style == "instant"))
+            {
+                Scale.ScaleX = 1; Scale.ScaleY = 1;
+                Opacity = 1;
+                return;
+            }
+            double sp = cfgApp != null ? cfgApp.AnimSpeed / 100.0 : 1.0;
+            Scale.ScaleX = 0.35; Scale.ScaleY = 0.35;
+            Opacity = 0;
+            var t = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(delay.TotalMilliseconds / sp) };
+            t.Tick += delegate
+            {
+                t.Stop();
+                bool pureFade = style == "fade";
+                IEasingFunction e;
+                if (style == "smooth" || pureFade) e = new CubicEase { EasingMode = EasingMode.EaseOut };
+                else if (style == "elastic") e = new ElasticEase { Oscillations = 2, Springiness = 3.2, EasingMode = EasingMode.EaseOut };
+                else if (style == "bounce") e = new BounceEase { Bounces = 2, Bounciness = 2.4, EasingMode = EasingMode.EaseOut };
+                else if (style == "ripple") e = new BackEase { Amplitude = 0.8, EasingMode = EasingMode.EaseOut };
+                else e = new BackEase { Amplitude = 0.45, EasingMode = EasingMode.EaseOut };
+                if (pureFade) Scale.ScaleX = 1; Scale.ScaleY = 1;
+                var gx = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds((pureFade ? 10 : 460) / sp))) { EasingFunction = e };
+                var gy = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds((pureFade ? 10 : 460) / sp))) { EasingFunction = e };
+                Scale.BeginAnimation(ScaleTransform.ScaleXProperty, gx);
+                Scale.BeginAnimation(ScaleTransform.ScaleYProperty, gy);
+                var go = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds((style == "ripple" ? 340 : 220) / sp)));
+                BeginAnimation(UIElement.OpacityProperty, go);
+            };
+            t.Start();
+        }
+
+        static void AnimateScale(ScaleTransform st, double to, int ms)
+        {
+            var e = new BackEase { Amplitude = 0.22, EasingMode = EasingMode.EaseOut };
+            var ax = new DoubleAnimation(to, new Duration(TimeSpan.FromMilliseconds(ms))) { EasingFunction = e };
+            var ay = new DoubleAnimation(to, new Duration(TimeSpan.FromMilliseconds(ms))) { EasingFunction = e };
+            st.BeginAnimation(ScaleTransform.ScaleXProperty, ax);
+            st.BeginAnimation(ScaleTransform.ScaleYProperty, ay);
+        }
+
+        static void Animate(UIElement el, string prop, double to, int ms)
+        {
+            var a = new DoubleAnimation(to, new Duration(TimeSpan.FromMilliseconds(ms)));
+            a.EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut };
+            if (prop == "Opacity") el.BeginAnimation(UIElement.OpacityProperty, a);
+        }
+    }
+
+    /// <summary>The flower: glass petals around a settings-button heart.</summary>
+    public class FlowerMenu : Canvas
+    {
+        public event Action<int> PetalActivated;
+        public event Action CenterActivated;
+
+        List<PetalView> _petals = new List<PetalView>();
+        Border _centerCircle;
+        StackPanel _centerGroup;
+        double _size;
+        RotateTransform _gearRotate;
+
+        public FlowerMenu(double size)
+        {
+            _size = size;
+            Width = size; Height = size;
+            Build();
+        }
+
+        static BitmapImage _logoBitmap;
+        public static BitmapImage LogoBitmap
+        {
+            get
+            {
+                if (_logoBitmap == null)
+                {
+                    using (var s = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream("Hinoki.logo.png"))
+                    {
+                        var bmp = new BitmapImage();
+                        bmp.BeginInit();
+                        bmp.CacheOption = BitmapCacheOption.OnLoad;
+                        bmp.StreamSource = s;
+                        bmp.EndInit();
+                        bmp.Freeze();
+                        _logoBitmap = bmp;
+                    }
+                }
+                return _logoBitmap;
+            }
+        }
+
+        public void Build()
+        {
+            Children.Clear();
+            _petals.Clear();
+            double S = _size;
+            var cfg = App.Config;
+            int n = cfg.Petals.Count;
+
+            double R = S * 0.335;                                  // orbit radius
+            double ph = S * 0.27;                                  // petal height
+            // petals never overlap: cap width by the space between neighbours
+            double pw = Math.Min(S * 0.30, 2 * R * Math.Sin(Math.PI / n) * 0.90);
+            double centerD = S * 0.14;
+            bool light = cfg.LightGlass;
+
+            for (int i = 0; i < n; i++)
+            {
+                double theta = i * 360.0 / n;
+                double rad = theta * Math.PI / 180.0;
+                double cx = S / 2 + R * Math.Sin(rad);
+                double cy = S / 2 - R * Math.Cos(rad);
+
+                var pv = new PetalView(i, cfg.Petals[i], pw, ph);
+                SetLeft(pv, cx - pw / 2);
+                SetTop(pv, cy - ph / 2);
+                pv.RotateShape(theta);
+                pv.Activated += OnPetalActivated;
+                Children.Add(pv);
+                _petals.Add(pv);
+            }
+
+            // ---- center: glass settings button ----
+            if (!cfg.ShowCenterButton)
+            {
+                return; // petals only
+            }
+
+            _centerGroup = new StackPanel();
+            _centerGroup.HorizontalAlignment = HorizontalAlignment.Center;
+            _centerGroup.VerticalAlignment = VerticalAlignment.Top;
+
+            double k = cfg.PetalOpacity / 100.0;
+            _centerCircle = new Border();
+            _centerCircle.Width = centerD; _centerCircle.Height = centerD;
+            _centerCircle.CornerRadius = new CornerRadius(centerD);
+            double ck = cfg.CenterOpacity / 100.0;
+            _centerCircle.Background = light ? Ui.GlassFill(0.80 * ck, 0.55 * ck) : Ui.GlassFill(0.30 * ck, 0.16 * ck);
+            _centerCircle.BorderBrush = Ui.Solid(Colors.White, (light ? 0.7 : 0.5) * ck);
+            _centerCircle.BorderThickness = new Thickness(1.4);
+            var cg = new DropShadowEffect();
+            cg.Color = Colors.White; cg.BlurRadius = 24; cg.ShadowDepth = 0;
+            cg.Opacity = 0.18 + 0.5 * (cfg.GlowStrength / 100.0);
+            _centerCircle.Effect = cg;
+            _centerCircle.Cursor = Cursors.Hand;
+
+            var gearHost = new Viewbox();
+            gearHost.Width = centerD * 0.4; gearHost.Height = centerD * 0.4;
+            var gearCanvas = new Canvas();
+            gearCanvas.Width = 24; gearCanvas.Height = 24;
+            var gearPath = new System.Windows.Shapes.Path();
+            gearPath.Data = Lucide.Get("settings");
+            gearPath.Stretch = Stretch.Uniform;
+            gearPath.Width = 24; gearPath.Height = 24;
+            gearPath.Stroke = Ui.Solid(Colors.White, 0.97);
+            gearPath.StrokeThickness = 1.6;
+            gearPath.StrokeLineJoin = PenLineJoin.Round;
+            gearPath.StrokeStartLineCap = PenLineCap.Round;
+            gearPath.StrokeEndLineCap = PenLineCap.Round;
+            var gearRot = new RotateTransform(0);
+            gearPath.RenderTransform = gearRot;
+            gearCanvas.Children.Add(gearPath);
+            gearHost.Child = gearCanvas;
+            _gearRotate = gearRot;
+            _centerCircle.Child = gearHost;
+
+            _centerGroup.Children.Add(_centerCircle);
+            _centerGroup.RenderTransformOrigin = new Point(0.5, 0);
+            var cst = new ScaleTransform(1, 1);
+            _centerGroup.RenderTransform = cst;
+            _centerGroup.MouseEnter += delegate
+            {
+                AnimateScale(cst, 1.04, 240);
+                cg.BeginAnimation(DropShadowEffect.OpacityProperty,
+                    new DoubleAnimation(0.7, new Duration(TimeSpan.FromMilliseconds(240))));
+                if (_gearRotate != null)
+                {
+                    var spin = new DoubleAnimation(45, new Duration(TimeSpan.FromMilliseconds(420)));
+                    spin.EasingFunction = new BackEase { Amplitude = 0.4, EasingMode = EasingMode.EaseOut };
+                    _gearRotate.BeginAnimation(RotateTransform.AngleProperty, spin);
+                }
+            };
+            _centerGroup.MouseLeave += delegate
+            {
+                AnimateScale(cst, 1, 240);
+                cg.BeginAnimation(DropShadowEffect.OpacityProperty,
+                    new DoubleAnimation(0.18 + 0.5 * (cfg.GlowStrength / 100.0), new Duration(TimeSpan.FromMilliseconds(240))));
+                if (_gearRotate != null)
+                {
+                    var spin = new DoubleAnimation(0, new Duration(TimeSpan.FromMilliseconds(420)));
+                    spin.EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut };
+                    _gearRotate.BeginAnimation(RotateTransform.AngleProperty, spin);
+                }
+            };
+            _centerGroup.MouseLeftButtonDown += delegate
+            {
+                var h = CenterActivated; if (h != null) h();
+            };
+
+            _centerGroup.Width = centerD;
+            SetLeft(_centerGroup, S / 2 - centerD / 2);
+            SetTop(_centerGroup, S / 2 - centerD / 2);
+            Children.Add(_centerGroup);
+        }
+
+        public void UpdatePetal(int index)
+        {
+            if (index >= 0 && index < _petals.Count)
+                _petals[index].SetData(App.Config.Petals[index]);
+        }
+
+        public void Rebuild()
+        {
+            Build();
+        }
+
+        public void SetSelected(int index)
+        {
+            for (int i = 0; i < _petals.Count; i++)
+                _petals[i].SetSelected(i == index);
+        }
+
+        public void RefreshToggleStates()
+        {
+            foreach (var pv in _petals)
+            {
+                var a = pv.Config.Action;
+                if (a == "mic_toggle") pv.SetMuted(Audio.IsMicMuted());
+                else if (a == "volume_mute") pv.SetMuted(Audio.IsSystemMuted());
+                else pv.SetMuted(false);
+            }
+        }
+
+        public void StartFloats()
+        {
+            for (int i = 0; i < _petals.Count; i++)
+                _petals[i].StartFloat(i);
+        }
+
+        public void ReleasePulseAt(int index)
+        {
+            if (index >= 0 && index < _petals.Count) _petals[index].ReleasePulse();
+        }
+
+        void OnPetalActivated(int index)
+        {
+            var h = PetalActivated;
+            if (h != null) h(index);
+        }
+
+        /// <summary>Set all initial (hidden) states BEFORE the window is shown — kills first-frame flicker.</summary>
+        public void PrepareIn()
+        {
+            Opacity = 0;
+            if (_centerGroup != null)
+            {
+                var cst0 = (ScaleTransform)_centerGroup.RenderTransform;
+                cst0.ScaleX = 0.55; cst0.ScaleY = 0.55;
+                _centerGroup.Opacity = 0;
+            }
+        }
+
+        public void PlayIn()
+        {
+            var cfgApp = App.Config;
+            string style = cfgApp != null ? cfgApp.EntranceStyle : "spring";
+            double sp = cfgApp != null ? cfgApp.AnimSpeed / 100.0 : 1.0;
+            bool instant = cfgApp != null && (!cfgApp.AnimationsEnabled || style == "instant");
+
+            if (instant)
+            {
+                Opacity = 1;
+                if (_centerGroup != null)
+                {
+                    var cstI = (ScaleTransform)_centerGroup.RenderTransform;
+                    cstI.ScaleX = 1; cstI.ScaleY = 1;
+                    _centerGroup.Opacity = 1;
+                }
+                return;
+            }
+
+            Opacity = 0;
+            var fade = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(200 / sp)));
+            fade.EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut };
+            BeginAnimation(OpacityProperty, fade);
+
+            var cst = (ScaleTransform)_centerGroup.RenderTransform;
+            _centerGroup.Opacity = 0;
+            var cgo = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(240 / sp)));
+            _centerGroup.BeginAnimation(OpacityProperty, cgo);
+            AnimateScale(cst, 1, (int)(420 / sp), 0.55);
+
+            int step = style == "ripple" ? 90 : 40;
+            for (int i = 0; i < _petals.Count; i++)
+                _petals[i].PlayIn(TimeSpan.FromMilliseconds((55 + i * step) / sp));
+        }
+
+        public void PlayOut(Action done)
+        {
+            var fade = new DoubleAnimation(0, new Duration(TimeSpan.FromMilliseconds(170)));
+            fade.Completed += delegate { if (done != null) done(); };
+            BeginAnimation(OpacityProperty, fade);
+        }
+
+        static void AnimateScale(ScaleTransform st, double to, int ms) { AnimateScale(st, to, ms, 0); }
+
+        static void AnimateScale(ScaleTransform st, double to, int ms, double from)
+        {
+            var e = new BackEase { Amplitude = 0.35, EasingMode = EasingMode.EaseOut };
+            if (from > 0) { st.ScaleX = from; st.ScaleY = from; }
+            var ax = new DoubleAnimation(to, new Duration(TimeSpan.FromMilliseconds(ms))) { EasingFunction = e };
+            var ay = new DoubleAnimation(to, new Duration(TimeSpan.FromMilliseconds(ms))) { EasingFunction = e };
+            st.BeginAnimation(ScaleTransform.ScaleXProperty, ax);
+            st.BeginAnimation(ScaleTransform.ScaleYProperty, ay);
+        }
+    }
+}
