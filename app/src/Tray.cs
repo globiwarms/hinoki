@@ -64,9 +64,7 @@ namespace Hinoki
 
         public static void Balloon(string title, string text)
         {
-            if (_icon == null) return;
-            try { _icon.ShowBalloonTip(3000, title, text, WF.ToolTipIcon.None); }
-            catch { }
+            Toast.Show(title, text, "bell");
         }
 
         public static void Dispose()

@@ -57,6 +57,8 @@ namespace Hinoki
         public bool ShowCenterButton { get; set; }    // gear in the middle of the flower
         public bool ShowNotifications { get; set; }   // balloons for actions
         public bool OpenShotFolder { get; set; }      // open explorer after screenshot
+        public bool ConfirmPower { get; set; }        // glass confirm for sleep/restart/shutdown
+        public bool CloseOnRightClick { get; set; }   // right-click closes the menu
         public bool BlurBackground { get; set; }   // glass blur inside settings window
         public bool LightGlass { get; set; }       // light glass theme for petals
 
@@ -214,7 +216,7 @@ namespace Hinoki
         public static AppConfig Defaults()
         {
             var c = new AppConfig();
-            c.Version = 7;
+            c.Version = 8;
             c.InterceptClick = true;
             c.ShowAtCursor = true;
             c.CloseAfterAction = true;
@@ -238,6 +240,8 @@ namespace Hinoki
             c.ShowCenterButton = true;
             c.ShowNotifications = true;
             c.OpenShotFolder = false;
+            c.ConfirmPower = true;
+            c.CloseOnRightClick = true;
             c.BlurBackground = true;
             c.LightGlass = false;
             c.SoundEnabled = true;

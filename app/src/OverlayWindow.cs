@@ -116,7 +116,10 @@ namespace Hinoki
 
             // click on empty glass inside the window closes it
             MouseLeftButtonDown += delegate { SafeClose(); };
-            MouseRightButtonDown += delegate { SafeClose(); };
+            MouseRightButtonDown += delegate
+            {
+                if (App.Config == null || App.Config.CloseOnRightClick) SafeClose();
+            };
 
             Current = this;
             KeyboardHook.Install();
@@ -125,6 +128,7 @@ namespace Hinoki
             Log(string.Format("OPEN cursor=({0},{1}) mon=({2}x{3}) dpi={4} flower={5:0} win=({6:0},{7:0},{8:0},{9:0})",
                 cursorX, cursorY, (int)monW, (int)monH, (int)dpi, S, Left, Top, Width, Height));
 
+            _flower.PrepareIn();   // hide everything before the first frame — no flicker
             Show();
             Sounds.Play("open");
             _flower.RefreshToggleStates();

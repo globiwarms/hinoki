@@ -470,6 +470,18 @@ namespace Hinoki
             if (h != null) h(index);
         }
 
+        /// <summary>Set all initial (hidden) states BEFORE the window is shown — kills first-frame flicker.</summary>
+        public void PrepareIn()
+        {
+            Opacity = 0;
+            if (_centerGroup != null)
+            {
+                var cst0 = (ScaleTransform)_centerGroup.RenderTransform;
+                cst0.ScaleX = 0.55; cst0.ScaleY = 0.55;
+                _centerGroup.Opacity = 0;
+            }
+        }
+
         public void PlayIn()
         {
             var cfgApp = App.Config;

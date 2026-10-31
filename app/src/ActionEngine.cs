@@ -50,9 +50,9 @@ namespace Hinoki
                 case "minimize_window": MinimizeActive(); break;
                 case "topmost_window": ToggleTopmost(); break;
                 case "lock_pc": Native.LockWorkStation(); break;
-                case "sleep_pc": Native.SetSuspendState(false, false, false); break;
-                case "restart_pc": Shell("shutdown", "/r /t 0"); break;
-                case "shutdown_pc": Shell("shutdown", "/s /t 0"); break;
+                case "sleep_pc": PowerAction("moon", "Спящий режим", "Сон", "Уйти в спящий режим?", "Спать", delegate { Native.SetSuspendState(false, false, false); }); break;
+                case "restart_pc": PowerAction("rotate-cw", "Перезагрузка", "Перезагрузить", "Перезагрузить компьютер сейчас?", "Перезагрузить", delegate { Shell("shutdown", "/r /t 0"); }); break;
+                case "shutdown_pc": PowerAction("power", "Выключение", "Выключить", "Выключить компьютер сейчас?", "Выключить", delegate { Shell("shutdown", "/s /t 0"); }); break;
                 case "task_manager": Shell("taskmgr", ""); break;
                 case "windows_settings": OpenLink("ms-settings:"); break;
                 case "calculator": Shell("calc", ""); break;
@@ -168,6 +168,24 @@ namespace Hinoki
 
         // ---- extra actions ----
 
+        /// <summary>Power actions run on a worker thread — marshal the confirm dialog to the UI thread.</summary>
+        static void PowerAction(string icon, string title, string confirmLabel, string question, string verb, Action act)
+        {
+            bool confirm = App.Config == null || App.Config.ConfirmPower;
+            bool approved = true;
+            if (confirm)
+            {
+                var d = Application.Current != null ? Application.Current.Dispatcher : null;
+                if (d != null)
+                    d.Invoke(new Action(delegate
+                    {
+                        approved = GlassConfirm.Show(title, question, verb, icon, true);
+                    }));
+            }
+            if (approved) act();
+            else Report("Hinoki", "Отменено");
+        }
+
         static void Shell(string exe, string args)
         {
             var psi = new ProcessStartInfo();
@@ -210,7 +228,7 @@ namespace Hinoki
                     string dir = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
                     string file = System.IO.Path.Combine(dir, "Hinoki_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".png");
                     bmp.Save(file, System.Drawing.Imaging.ImageFormat.Png);
-                    Report("Hinoki", "Скриншот сохранён: " + file);
+                    Toast.Show("Скриншот готов", file, "camera");
                     if (App.Config != null && App.Config.OpenShotFolder)
                     {
                         var psi = new ProcessStartInfo("explorer.exe", "/select,\"" + file + "\"");

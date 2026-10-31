@@ -226,7 +226,7 @@ namespace Hinoki
             bn.VerticalAlignment = VerticalAlignment.Center;
             bn.Margin = new Thickness(10, 0, 0, 0);
             bn.Children.Add(Glass.Label("Hinoki", 15.5, false, true));
-            bn.Children.Add(Glass.Label("v2.3.0", 10, true));
+            bn.Children.Add(Glass.Label("v2.4.0", 10, true));
             brand.Children.Add(bn);
             Grid.SetRow(brand, 0);
             rail.Children.Add(brand);
@@ -1235,6 +1235,16 @@ namespace Hinoki
             stack.Children.Add(Setting("Анимации", "Пружинное раскрытие и плавные переходы", tgAnim));
             stack.Children.Add(Sep());
 
+            var tgConfirm = new GlassToggle(cfgApp.ConfirmPower);
+            tgConfirm.Changed += delegate { App.Config.ConfirmPower = tgConfirm.IsOn; App.SaveConfig(); Pulse(); };
+            stack.Children.Add(Setting("Подтверждать выключение", "Стеклянный диалог перед сном, перезагрузкой и выключением", tgConfirm));
+            stack.Children.Add(Sep());
+
+            var tgRight = new GlassToggle(cfgApp.CloseOnRightClick);
+            tgRight.Changed += delegate { App.Config.CloseOnRightClick = tgRight.IsOn; App.SaveConfig(); Pulse(); };
+            stack.Children.Add(Setting("Закрывать правой кнопкой", "ПКМ по стеклу тоже сворачивает меню", tgRight));
+            stack.Children.Add(Sep());
+
             var tgNotif = new GlassToggle(cfgApp.ShowNotifications);
             tgNotif.Changed += delegate { App.Config.ShowNotifications = tgNotif.IsOn; App.SaveConfig(); Pulse(); };
             stack.Children.Add(Setting("Уведомления о действиях", "Всплывающие подсказки у часов (скриншоты, ошибки)", tgNotif));
@@ -1306,7 +1316,7 @@ namespace Hinoki
             name.Margin = new Thickness(0, 14, 0, 0);
             stack.Children.Add(name);
 
-            var ver = Glass.Label("Версия 2.3.0 · Windows 10/11", 12, true);
+            var ver = Glass.Label("Версия 2.4.0 · Windows 10/11", 12, true);
             ver.HorizontalAlignment = HorizontalAlignment.Center;
             ver.Margin = new Thickness(0, 3, 0, 0);
             stack.Children.Add(ver);
