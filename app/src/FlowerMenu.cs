@@ -50,6 +50,7 @@ namespace Hinoki
         Border _shape, _hoverLayer, _ring, _mutedLayer;
         TextBlock _label;
         UIElement _iconHost;
+        ContentControl _iconWrap;
         bool _muted;
 
         public PetalView(int index, PetalConfig cfg, double w, double h)
@@ -114,9 +115,9 @@ namespace Hinoki
             contentStack.HorizontalAlignment = HorizontalAlignment.Center;
 
             _iconHost = BuildIconHost(cfg, Math.Max(17, w * 0.15));
-            var iconHostWrap = new ContentControl();
-            iconHostWrap.Content = _iconHost;
-            iconHostWrap.HorizontalAlignment = HorizontalAlignment.Center;
+            _iconWrap = new ContentControl();
+            _iconWrap.Content = _iconHost;
+            _iconWrap.HorizontalAlignment = HorizontalAlignment.Center;
 
             _label = new TextBlock();
             _label.Text = cfg.Label;
@@ -130,7 +131,7 @@ namespace Hinoki
             _label.MaxWidth = w * 0.84;
             _label.Visibility = (cfgApp != null && !cfgApp.ShowLabels) ? Visibility.Collapsed : Visibility.Visible;
 
-            contentStack.Children.Add(iconHostWrap);
+            contentStack.Children.Add(_iconWrap);
             contentStack.Children.Add(_label);
             content.Children.Add(contentStack);
 
@@ -181,10 +182,18 @@ namespace Hinoki
             var root = (Grid)Child;
             var content = (Grid)root.Children[1];
             var stack = (StackPanel)content.Children[0];
-            if (_iconHost != null) stack.Children.Remove(_iconHost);
+            // remove the OLD wrapper (it still holds the previous icon visual)
+            if (_iconWrap != null)
+            {
+                stack.Children.Remove(_iconWrap);
+                _iconWrap = null;
+            }
             double w = Width;
             _iconHost = BuildIconHost(Config, Math.Max(17, w * 0.15));
-            stack.Children.Insert(0, _iconHost);
+            _iconWrap = new ContentControl();
+            _iconWrap.Content = _iconHost;
+            _iconWrap.HorizontalAlignment = HorizontalAlignment.Center;
+            stack.Children.Insert(0, _iconWrap);
         }
 
         /// <summary>Red tint when a toggle action is currently OFF (muted).</summary>

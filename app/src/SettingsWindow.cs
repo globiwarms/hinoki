@@ -56,6 +56,8 @@ namespace Hinoki
         ContentControl _pageHost;
         GlassTextBox _iconSearch;
         WrapPanel _iconPanel;
+        bool _expandedIcons;
+        string _expandLabel = "";
         TextBlock _pageTitle;
         string _page = "petals";
         bool _suppressPulse;
@@ -93,17 +95,40 @@ namespace Hinoki
             _chrome.BorderBrush = Ui.Solid(Colors.White, 0.09);
             _chrome.BorderThickness = new Thickness(1);
             _chrome.ClipToBounds = true;
-            _chrome.Effect = new DropShadowEffect { Color = Colors.Black, BlurRadius = 44, ShadowDepth = 10, Opacity = 0.5 };
 
             // one subtle accent breath behind everything — the only decoration
             var blob = new Ellipse();
-            blob.Width = 420; blob.Height = 420;
-            blob.Fill = Ui.Solid(Ui.Accent, 0.10);
-            blob.Effect = new BlurEffect { Radius = 90 };
+            blob.Width = 760; blob.Height = 760;
+            var bg = new RadialGradientBrush();
+            bg.GradientStops.Add(new GradientStop(Color.FromArgb(46, 0xA8, 0xB8, 0x99), 0));
+            bg.GradientStops.Add(new GradientStop(Color.FromArgb(0, 0xA8, 0xB8, 0x99), 1));
+            bg.Freeze();
+            blob.Fill = bg;
             blob.IsHitTestVisible = false;
             blob.HorizontalAlignment = HorizontalAlignment.Left;
             blob.VerticalAlignment = VerticalAlignment.Top;
-            blob.Margin = new Thickness(-140, -120, 0, 0);
+            blob.Margin = new Thickness(-260, -260, 0, 0);
+
+            var sbXaml =
+                "<ControlTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' " +
+                "xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml'>" +
+                "  <Track x:Name='PART_Track'>" +
+                "    <Track.Thumb>" +
+                "      <Thumb>" +
+                "        <Thumb.Template>" +
+                "          <ControlTemplate><Border Background='Transparent' CornerRadius='3' Width='5' Height='40'/></ControlTemplate>" +
+                "        </Thumb.Template>" +
+                "      </Thumb>" +
+                "    </Track.Thumb>" +
+                "  </Track>" +
+                "</ControlTemplate>";
+            var sbTemplate = (ControlTemplate)System.Windows.Markup.XamlReader.Parse(sbXaml);
+            var sbStyle = new Style(typeof(System.Windows.Controls.Primitives.ScrollBar));
+            sbStyle.Setters.Add(new Setter(WidthProperty, 6.0));
+            sbStyle.Setters.Add(new Setter(TemplateProperty, sbTemplate));
+
+            Resources = new ResourceDictionary();
+            Resources.Add(typeof(System.Windows.Controls.Primitives.ScrollBar), sbStyle);
 
             var layout = new Grid();
             layout.Children.Add(blob);
@@ -178,7 +203,7 @@ namespace Hinoki
             bn.VerticalAlignment = VerticalAlignment.Center;
             bn.Margin = new Thickness(10, 0, 0, 0);
             bn.Children.Add(Glass.Label("Hinoki", 15.5, false, true));
-            bn.Children.Add(Glass.Label("v1.3.1", 10, true));
+            bn.Children.Add(Glass.Label("v2.1.0", 10, true));
             brand.Children.Add(bn);
             Grid.SetRow(brand, 0);
             rail.Children.Add(brand);
@@ -661,7 +686,53 @@ namespace Hinoki
             _editor.Children.Add(iconScroll);
 
             IconTile.ActiveGroup = new List<IconTile>();
-            Action<string> rebuildIcons = delegate(string query)
+            _expandedIcons = false;
+            Action<string> rebuildIcons = null;
+
+            var expandBtn = new Border();
+            expandBtn.CornerRadius = new CornerRadius(10);
+            expandBtn.Background = Ui.Solid(Colors.White, 0.04);
+            expandBtn.Cursor = Cursors.Hand;
+            expandBtn.Margin = new Thickness(0, 6, 0, 0);
+            var ebGrid = new Grid();
+            ebGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            ebGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var ebText = Glass.Label("", 12, true);
+            ebText.Margin = new Thickness(10, 6, 0, 8);
+            Grid.SetColumn(ebText, 0);
+            ebGrid.Children.Add(ebText);
+            var chev = new TextBlock();
+            chev.Text = ((char)0xE70D).ToString();
+            chev.FontFamily = Ui.Icons;
+            chev.FontSize = 10;
+            chev.Foreground = Ui.Solid(Ui.InkDim, 1);
+            chev.HorizontalAlignment = HorizontalAlignment.Center;
+            chev.VerticalAlignment = VerticalAlignment.Center;
+            chev.RenderTransformOrigin = new Point(0.5, 0.5);
+            chev.RenderTransform = new RotateTransform(0);
+            Grid.SetColumn(chev, 1);
+            chev.Margin = new Thickness(0, 0, 10, 0);
+            ebGrid.Children.Add(chev);
+            expandBtn.Child = ebGrid;
+            expandBtn.MouseEnter += delegate { expandBtn.Background = Ui.Solid(Colors.White, 0.08); };
+            expandBtn.MouseLeave += delegate { expandBtn.Background = Ui.Solid(Colors.White, 0.04); };
+
+            expandBtn.MouseLeftButtonUp += delegate
+            {
+                _expandedIcons = !_expandedIcons;
+                rebuildIcons(_iconSearch.Value);
+                var rot = (RotateTransform)chev.RenderTransform;
+                var ra = new DoubleAnimation(_expandedIcons ? 180 : 0, new Duration(TimeSpan.FromMilliseconds(260)));
+                ra.EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut };
+                rot.BeginAnimation(RotateTransform.AngleProperty, ra);
+                var target = _expandedIcons ? 216.0 : 58.0;
+                var ha = new DoubleAnimation(target, new Duration(TimeSpan.FromMilliseconds(320)));
+                ha.EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut };
+                iconScroll.BeginAnimation(HeightProperty, ha);
+                ebText.Text = _expandedIcons ? "Свернуть" : _expandLabel;
+            };
+
+            rebuildIcons = delegate(string query)
             {
                 _iconPanel.Children.Clear();
                 string q = (query ?? "").Trim().ToLowerInvariant();
@@ -672,7 +743,6 @@ namespace Hinoki
                     string tags = def[1];
                     if (q.Length > 0 && !tags.Contains(q) && !def[0].ToLowerInvariant().Contains(q)) continue;
                     var gl = def[0];
-                    if (shown < 3) OverlayWindow.Log("TILE " + gl + " hasLucide=" + Lucide.Has(gl));
                     var tile = new IconTile(gl);
                     tile.Picked += delegate (string g)
                     {
@@ -684,14 +754,28 @@ namespace Hinoki
                     };
                     IconTile.ActiveGroup.Add(tile);
                     _iconPanel.Children.Add(tile);
-                    if (gl.Equals(p.Icon, StringComparison.OrdinalIgnoreCase)) tile.SetSelected(true);
                     shown++;
                 }
-                if (shown == 0)
-                    _iconPanel.Children.Add(Glass.Label("Ничего не найдено — попробуйте по-другому", 12, true));
+                _expandLabel = "Все иконки (" + shown + ")";
+                if (!_expandedIcons)
+                {
+                    // collapse: hide everything beyond the first 8 tiles
+                    int keep = 8;
+                    for (int i = _iconPanel.Children.Count - 1; i >= keep; i--)
+                        _iconPanel.Children.RemoveAt(i);
+                }
+                ebText.Text = _expandedIcons ? "Свернуть" : _expandLabel;
+                iconScroll.Height = _expandedIcons ? 216 : 58;
             };
+
+            _editor.Children.Add(expandBtn);
+            expandBtn.Visibility = Visibility.Visible;
             rebuildIcons("");
-            _iconSearch.Box.TextChanged += delegate { rebuildIcons(_iconSearch.Value); };
+            _iconSearch.Box.TextChanged += delegate
+            {
+                rebuildIcons(_iconSearch.Value);
+                expandBtn.Visibility = _iconSearch.Value.Length > 0 ? Visibility.Collapsed : Visibility.Visible;
+            };
 
             _editor.Children.Add(Section("Действие"));
             var actionItems = new List<string>(Actions.Names);
@@ -1151,12 +1235,12 @@ namespace Hinoki
             name.Margin = new Thickness(0, 14, 0, 0);
             stack.Children.Add(name);
 
-            var ver = Glass.Label("Версия 1.3.1 · Windows 10/11", 12, true);
+            var ver = Glass.Label("Версия 2.1.0 · Windows 10/11", 12, true);
             ver.HorizontalAlignment = HorizontalAlignment.Center;
             ver.Margin = new Thickness(0, 3, 0, 0);
             stack.Children.Add(ver);
 
-            var desc = Glass.Label("Средняя кнопка мыши — и всё под рукой: Discord, музыка, приложения. Стеклянный цветок, который всегда рядом.", 12.5, true);
+            var desc = Glass.Label("Средняя кнопка мыши — и всё под рукой: микрофон, звук, музыка, приложения. Стеклянный цветок, который всегда рядом.", 12.5, true);
             desc.TextWrapping = TextWrapping.Wrap;
             desc.TextAlignment = TextAlignment.Center;
             desc.LineHeight = 19;
