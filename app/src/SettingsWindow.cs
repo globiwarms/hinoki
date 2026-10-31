@@ -61,7 +61,6 @@ namespace Hinoki
         TextBlock _pageTitle;
         TextBlock _pageSub;
         string _page = "petals";
-        bool _suppressPulse;
 
         public SettingsWindow()
         {
@@ -227,7 +226,7 @@ namespace Hinoki
             bn.VerticalAlignment = VerticalAlignment.Center;
             bn.Margin = new Thickness(10, 0, 0, 0);
             bn.Children.Add(Glass.Label("Hinoki", 15.5, false, true));
-            bn.Children.Add(Glass.Label("v2.2.0", 10, true));
+            bn.Children.Add(Glass.Label("v2.3.0", 10, true));
             brand.Children.Add(bn);
             Grid.SetRow(brand, 0);
             rail.Children.Add(brand);
@@ -490,7 +489,6 @@ namespace Hinoki
 
         public void Pulse()
         {
-            if (_suppressPulse) return;
             _status.Text = "Сохранено ✓";
             var a = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(140)));
             _status.BeginAnimation(OpacityProperty, a);
@@ -509,53 +507,57 @@ namespace Hinoki
 
         static readonly string[][] IconLibrary = new string[][]
         {
+            // media & sound
             new[] { "mic", "микрофон микрофон mic звукозапись" },
             new[] { "mic-off", "микрофон выкл mic-off мут" },
             new[] { "volume-2", "звук громкость volume динамик" },
             new[] { "volume-1", "звук тише volume маленький" },
             new[] { "volume-x", "звук выкл мут volume-x" },
+            new[] { "headphones", "наушники headphones гарнитура" },
+            new[] { "music", "музыка нота music трек" },
             new[] { "play", "play играть пуск музыка старт" },
             new[] { "pause", "пауза pause стоп" },
-            new[] { "music", "музыка нота music трек" },
             new[] { "skip-forward", "следующий трек next вперёд" },
             new[] { "skip-back", "предыдущий трек prev назад" },
-            new[] { "app-window", "приложение окно app программа" },
-            new[] { "link-2", "ссылка link адрес url цепь" },
+            // system & power
+            new[] { "power", "питание power выключить" },
+            new[] { "moon", "луна сон ночь спящий moon" },
+            new[] { "lock", "замок lock блокировка закрыть" },
+            new[] { "monitor", "монитор экран desktop дисплей" },
+            new[] { "monitor-off", "монитор выкл погасить экран" },
+            new[] { "minimize-2", "свернуть minimize окно" },
+            new[] { "activity", "диспетчер activity пульс задачи" },
             new[] { "settings", "настройки gear шестерёнка settings" },
+            new[] { "sliders-horizontal", "ползунки sliders поведение настройки" },
+            new[] { "rotate-cw", "перезагрузка rotate поворот" },
+            new[] { "refresh-cw", "обновить refresh заново" },
+            // files & folders
             new[] { "folder", "папка folder директория" },
             new[] { "folder-open", "папка открыта открыть folder" },
-            new[] { "keyboard", "клавиатура keyboard" },
-            new[] { "globe", "глобус интернет globe web сеть" },
-            new[] { "star", "звезда star избранное лайк" },
-            new[] { "lock", "замок lock блокировка закрыть" },
-            new[] { "camera", "камера фото camera снимок скриншот" },
-            new[] { "image", "изображение картинка image фото" },
-            new[] { "crop", "скриншот обрезка crop выделить" },
-            new[] { "search", "поиск найти search лупа" },
-            new[] { "bell", "уведомление колокольчик bell звонок" },
+            new[] { "file-text", "документ файл текст file текстовый" },
             new[] { "download", "скачать download загрузка вниз" },
             new[] { "upload", "загрузить upload вверх экспорт" },
             new[] { "copy", "копировать copy" },
             new[] { "clipboard", "буфер clipboard вставить" },
             new[] { "trash-2", "корзина удалить мусор trash bin" },
-            new[] { "power", "питание power выключить" },
-            new[] { "moon", "луна сон ночь спящий moon" },
-            new[] { "monitor", "монитор экран desktop дисплей" },
-            new[] { "monitor-off", "монитор выкл погасить экран" },
-            new[] { "pin", "закрепить pin поверх булавка" },
-            new[] { "refresh-cw", "обновить refresh заново" },
-            new[] { "rotate-cw", "перезагрузка rotate поворот" },
-            new[] { "calculator", "калькулятор calculator посчитать" },
-            new[] { "smile", "смайл эмодзи smile улыбка" },
-            new[] { "gamepad-2", "геймпад игра game steam" },
-            new[] { "headphones", "наушники headphones гарнитура" },
-            new[] { "activity", "диспетчер activity пульс задачи" },
-            new[] { "minimize-2", "свернуть minimize окно" },
+            // web & communication
+            new[] { "globe", "глобус интернет globe web сеть" },
+            new[] { "link-2", "ссылка link адрес url цепь" },
             new[] { "message-circle", "сообщение чат message discord" },
-            new[] { "file-text", "документ файл текст file текстовый" },
+            new[] { "search", "поиск найти search лупа" },
+            new[] { "bell", "уведомление колокольчик bell звонок" },
+            new[] { "gamepad-2", "геймпад игра game steam" },
+            // appearance & misc
+            new[] { "camera", "камера фото camera снимок скриншот" },
+            new[] { "image", "изображение картинка image фото" },
+            new[] { "crop", "скриншот обрезка crop выделить" },
+            new[] { "star", "звезда star избранное лайк" },
+            new[] { "smile", "смайл эмодзи smile улыбка" },
+            new[] { "paintbrush", "палитра paintbrush краски цвет" },
             new[] { "grid-2x2", "приложения сетка grid все" },
-            new[] { "sliders-horizontal", "ползунки sliders поведение настройки" },
-            new[] { "palette", "палитра palette краски цвет" },
+            new[] { "calculator", "калькулятор calculator посчитать" },
+            new[] { "pin", "закрепить pin поверх булавка" },
+            new[] { "keyboard", "клавиатура keyboard" },
             new[] { "info", "информация info сведения" }
         };
 
@@ -1304,7 +1306,7 @@ namespace Hinoki
             name.Margin = new Thickness(0, 14, 0, 0);
             stack.Children.Add(name);
 
-            var ver = Glass.Label("Версия 2.2.0 · Windows 10/11", 12, true);
+            var ver = Glass.Label("Версия 2.3.0 · Windows 10/11", 12, true);
             ver.HorizontalAlignment = HorizontalAlignment.Center;
             ver.Margin = new Thickness(0, 3, 0, 0);
             stack.Children.Add(ver);

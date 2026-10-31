@@ -588,8 +588,8 @@ namespace Hinoki
                 t.Foreground = Ui.Solid(Ui.Ink, 0.95);
             }
 
-            MouseEnter += delegate { Opacity = 0.9; };
-            MouseLeave += delegate { Opacity = 1; };
+            MouseEnter += delegate { Opacity = 0.92; Scale(1.03); };
+            MouseLeave += delegate { Opacity = 1; Scale(1); };
             MouseLeftButtonDown += delegate { Scale(0.95); };
             MouseLeftButtonUp += delegate
             {

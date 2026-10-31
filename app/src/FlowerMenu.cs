@@ -266,6 +266,7 @@ namespace Hinoki
                 else if (style == "bounce") e = new BounceEase { Bounces = 2, Bounciness = 2.4, EasingMode = EasingMode.EaseOut };
                 else if (style == "ripple") e = new BackEase { Amplitude = 0.8, EasingMode = EasingMode.EaseOut };
                 else e = new BackEase { Amplitude = 0.45, EasingMode = EasingMode.EaseOut };
+                if (pureFade) Scale.ScaleX = 1; Scale.ScaleY = 1;
                 var gx = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds((pureFade ? 10 : 460) / sp))) { EasingFunction = e };
                 var gy = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds((pureFade ? 10 : 460) / sp))) { EasingFunction = e };
                 Scale.BeginAnimation(ScaleTransform.ScaleXProperty, gx);
