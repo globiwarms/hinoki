@@ -47,6 +47,8 @@ namespace Hinoki
         public readonly int Index;
         public readonly PetalConfig Config;
         public readonly ScaleTransform Scale = new ScaleTransform(1, 1);
+        readonly TranslateTransform _floatY = new TranslateTransform();
+        readonly TranslateTransform _floatX = new TranslateTransform();
         Border _shape, _hoverLayer, _ring, _mutedLayer;
         TextBlock _label;
         UIElement _iconHost;
@@ -141,7 +143,10 @@ namespace Hinoki
             Child = root;
 
             RenderTransformOrigin = new Point(0.5, 0.5);
-            RenderTransform = Scale;
+            var rootTg = new TransformGroup();
+            rootTg.Children.Add(Scale);
+            rootTg.Children.Add(_floatY);
+            RenderTransform = rootTg;
 
             MouseEnter += delegate { Hover(true); };
             MouseLeave += delegate { Hover(false); };
@@ -156,7 +161,18 @@ namespace Hinoki
 
         static UIElement MakeIconVisual(string icon, double size, bool light)
         {
-            return LucideHost.Build(icon, size, light);
+            var path = new System.Windows.Shapes.Path();
+            path.Data = Lucide.Get(icon);
+            path.Stretch = Stretch.Uniform;
+            path.Stroke = light ? Ui.Solid(Color.FromRgb(0x24, 0x2B, 0x1E), 0.95) : Ui.Solid(Colors.White, 0.97);
+            path.StrokeThickness = 1.5;
+            path.StrokeLineJoin = PenLineJoin.Round;
+            path.StrokeStartLineCap = PenLineCap.Round;
+            path.StrokeEndLineCap = PenLineCap.Round;
+            path.Width = size; path.Height = size;
+            path.HorizontalAlignment = HorizontalAlignment.Center;
+            path.VerticalAlignment = VerticalAlignment.Center;
+            return path;
         }
 
         UIElement BuildIconHost(PetalConfig cfg, double size)
@@ -212,6 +228,22 @@ namespace Hinoki
             RenderTransform = Scale; // scale around RenderTransformOrigin (0.5, 0.5)
             // only the inner glass shape rotates — the content layer is separate and stays horizontal
             _shape.RenderTransform = new RotateTransform(theta, Width / 2, Height / 2);
+        }
+
+        /// <summary>Gentle perpetual float — the glass feels alive.</summary>
+        public void StartFloat(int index)
+        {
+            if (App.Config != null && !App.Config.AnimationsEnabled) return;
+            var a = new DoubleAnimation(-2.2, new Duration(TimeSpan.FromMilliseconds(2400 + index * 260)));
+            a.AutoReverse = true;
+            a.RepeatBehavior = RepeatBehavior.Forever;
+            a.EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut };
+            var b = new DoubleAnimation(2.2, new Duration(TimeSpan.FromMilliseconds(2400 + index * 260)));
+            b.AutoReverse = true;
+            b.RepeatBehavior = RepeatBehavior.Forever;
+            b.EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut };
+            _floatY.BeginAnimation(TranslateTransform.YProperty, a);
+            _floatX.BeginAnimation(TranslateTransform.XProperty, b);
         }
 
         void Hover(bool on)
@@ -279,7 +311,7 @@ namespace Hinoki
 
         static void AnimateScale(ScaleTransform st, double to, int ms)
         {
-            var e = new CubicEase { EasingMode = EasingMode.EaseOut };
+            var e = new BackEase { Amplitude = 0.22, EasingMode = EasingMode.EaseOut };
             var ax = new DoubleAnimation(to, new Duration(TimeSpan.FromMilliseconds(ms))) { EasingFunction = e };
             var ay = new DoubleAnimation(to, new Duration(TimeSpan.FromMilliseconds(ms))) { EasingFunction = e };
             st.BeginAnimation(ScaleTransform.ScaleXProperty, ax);
@@ -457,6 +489,12 @@ namespace Hinoki
                 else if (a == "volume_mute") pv.SetMuted(Audio.IsSystemMuted());
                 else pv.SetMuted(false);
             }
+        }
+
+        public void StartFloats()
+        {
+            for (int i = 0; i < _petals.Count; i++)
+                _petals[i].StartFloat(i);
         }
 
         public void ReleasePulseAt(int index)

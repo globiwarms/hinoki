@@ -25,7 +25,7 @@ namespace Hinoki
             bool allow = true;
             if (name == "open") allow = cfg.SoundOpen;
             if (name == "close") allow = cfg.SoundClose;
-            if (name == "click" || name == "toggle_on" || name == "toggle_off") allow = cfg.SoundClick;
+            if (name == "click" || name == "toggle_on" || name == "toggle_off" || name == "shutter") allow = cfg.SoundClick;
             if (!allow) return;
 
             try
@@ -59,6 +59,9 @@ namespace Hinoki
                     break;
                 case "toggle_off":
                     tones = new List<double[]> { new double[] { 784, 0.08, 0.45 }, new double[] { 440, 0.12, 0.5 } };
+                    break;
+                case "shutter":
+                    tones = new List<double[]> { new double[] { 1568, 0.04, 0.6 }, new double[] { 2093, 0.05, 0.5 } };
                     break;
                 case "error":
                     tones = new List<double[]> { new double[] { 220, 0.16, 0.55 } };

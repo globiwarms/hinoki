@@ -133,6 +133,7 @@ namespace Hinoki
             Sounds.Play("open");
             _flower.RefreshToggleStates();
             _flower.PlayIn();
+            _flower.StartFloats();
 
             if (App.Config.AutoCloseSeconds > 0)
             {

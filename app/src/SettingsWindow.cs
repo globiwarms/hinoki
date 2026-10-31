@@ -226,7 +226,7 @@ namespace Hinoki
             bn.VerticalAlignment = VerticalAlignment.Center;
             bn.Margin = new Thickness(10, 0, 0, 0);
             bn.Children.Add(Glass.Label("Hinoki", 15.5, false, true));
-            bn.Children.Add(Glass.Label("v2.4.0", 10, true));
+            bn.Children.Add(Glass.Label("v2.5.0", 10, true));
             brand.Children.Add(bn);
             Grid.SetRow(brand, 0);
             rail.Children.Add(brand);
@@ -305,9 +305,9 @@ namespace Hinoki
                 bool active = keys[i] == key;
                 _rail[i].Background = active ? Ui.Solid(Ui.Accent, 0.22) : Brushes.Transparent;
                 _railGlyphs[i].Content = LucideHost.Build(RailIcon(keys[i]), 15, false);
-                var host = (ContentControl)((StackPanel)_rail[i].Child).Children[0];
-                var pathEl = (System.Windows.Shapes.Path)((Canvas)((Viewbox)host.Content).Child).Children[0];
-                pathEl.Stroke = active ? Ui.Solid(Ui.Accent, 1) : Ui.Solid(Ui.InkDim, 1);
+                var pathEl = _railGlyphs[i].Content as System.Windows.Shapes.Path;
+                if (pathEl != null)
+                    pathEl.Stroke = active ? Ui.Solid(Ui.Accent, 1) : Ui.Solid(Ui.InkDim, 1);
             }
             if (_pageTitle != null) _pageTitle.Text = PageTitle(key);
             if (_pageSub != null) _pageSub.Text = PageSub(key);
@@ -675,8 +675,9 @@ namespace Hinoki
                 g.Children.Add(icBorder);
                 System.Action tint = delegate
                 {
-                    var pathEl = (System.Windows.Shapes.Path)((Canvas)((Viewbox)icHost.Content).Child).Children[0];
-                    pathEl.Stroke = sel ? Ui.Solid(Ui.Accent, 1) : Ui.Solid(Ui.InkDim, 1);
+                    var pathEl = icHost.Content as System.Windows.Shapes.Path;
+                    if (pathEl != null)
+                        pathEl.Stroke = sel ? Ui.Solid(Ui.Accent, 1) : Ui.Solid(Ui.InkDim, 1);
                 };
                 tint();
                 var t = Glass.Label(string.IsNullOrEmpty(p.Label) ? "Лепесток " + (i + 1) : p.Label, 12.5, false, sel);
@@ -1316,7 +1317,7 @@ namespace Hinoki
             name.Margin = new Thickness(0, 14, 0, 0);
             stack.Children.Add(name);
 
-            var ver = Glass.Label("Версия 2.4.0 · Windows 10/11", 12, true);
+            var ver = Glass.Label("Версия 2.5.0 · Windows 10/11", 12, true);
             ver.HorizontalAlignment = HorizontalAlignment.Center;
             ver.Margin = new Thickness(0, 3, 0, 0);
             stack.Children.Add(ver);

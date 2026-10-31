@@ -228,6 +228,7 @@ namespace Hinoki
                     string dir = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
                     string file = System.IO.Path.Combine(dir, "Hinoki_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".png");
                     bmp.Save(file, System.Drawing.Imaging.ImageFormat.Png);
+                    Sounds.Play("shutter");
                     Toast.Show("Скриншот готов", file, "camera");
                     if (App.Config != null && App.Config.OpenShotFolder)
                     {

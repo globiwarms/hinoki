@@ -46,24 +46,22 @@ namespace Hinoki
     {
         public static UIElement Build(string name, double size, bool light)
         {
-            var vb = new Viewbox();
-            vb.Width = size; vb.Height = size;
-            var canvas = new Canvas();
-            canvas.Width = 24; canvas.Height = 24;
             var path = new System.Windows.Shapes.Path();
             path.Data = Lucide.Get(name);
+            path.Stretch = Stretch.Uniform;              // geometry fits, stroke stays constant
             path.Stroke = light ? Ui.Solid(Color.FromRgb(0x24, 0x2B, 0x1E), 0.95) : Ui.Solid(Colors.White, 0.95);
-            path.StrokeThickness = 1.5;
+            path.StrokeThickness = 1.6;
             path.StrokeLineJoin = PenLineJoin.Round;
             path.StrokeStartLineCap = PenLineCap.Round;
             path.StrokeEndLineCap = PenLineCap.Round;
-            canvas.Children.Add(path);
-            vb.Child = canvas;
-            return vb;
+            path.Width = size; path.Height = size;
+            path.HorizontalAlignment = HorizontalAlignment.Center;
+            path.VerticalAlignment = VerticalAlignment.Center;
+            return path;
         }
     }
 
-    // ---------- toggle ----------
+    // ---------- toggle ----------    // ---------- toggle ----------
 
     public class GlassToggle : Border
     {
