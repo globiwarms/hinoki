@@ -54,6 +54,8 @@ namespace Hinoki
         Dictionary<string, FrameworkElement> _pages = new Dictionary<string, FrameworkElement>();
         ContentControl _pageHost;
         GlassDropDown _actionDrop;
+        GlassTextBox _iconSearch;
+        WrapPanel _iconPanel;
         TextBlock _pageTitle;
         string _page = "petals";
         bool _suppressPulse;
@@ -79,8 +81,15 @@ namespace Hinoki
 
             _chrome = new Border();
             _chrome.CornerRadius = new CornerRadius(22);
-            _chrome.Background = Ui.Solid(Color.FromRgb(0x10, 0x11, 0x15), 0.88);
-            _chrome.BorderBrush = Ui.Solid(Colors.White, 0.10);
+            var chromeFill = new LinearGradientBrush();
+            chromeFill.StartPoint = new Point(0, 0);
+            chromeFill.EndPoint = new Point(0.7, 1);
+            chromeFill.GradientStops.Add(new GradientStop(Color.FromRgb(0x18, 0x1A, 0x20), 0));
+            chromeFill.GradientStops.Add(new GradientStop(Color.FromRgb(0x11, 0x12, 0x17), 0.55));
+            chromeFill.GradientStops.Add(new GradientStop(Color.FromRgb(0x0D, 0x0E, 0x12), 1));
+            chromeFill.Freeze();
+            _chrome.Background = chromeFill;
+            _chrome.BorderBrush = Ui.Solid(Colors.White, 0.09);
             _chrome.BorderThickness = new Thickness(1);
             _chrome.ClipToBounds = true;
             _chrome.Effect = new DropShadowEffect { Color = Colors.Black, BlurRadius = 44, ShadowDepth = 10, Opacity = 0.5 };
@@ -112,10 +121,7 @@ namespace Hinoki
 
             Loaded += delegate
             {
-                var hwnd = new WindowInteropHelper(this).Handle;
-                Native.RoundCorners(hwnd);
-                if (App.Config.BlurBackground)
-                    Native.ApplyAcrylic(hwnd, 0xDC, 0x0F, 0x10, 0x14);
+                // single frame: my own border only — no DWM rounding, no acrylic sheet
                 Entrance();
             };
             Closed += delegate
@@ -189,7 +195,7 @@ namespace Hinoki
             bn.VerticalAlignment = VerticalAlignment.Center;
             bn.Margin = new Thickness(10, 0, 0, 0);
             bn.Children.Add(Glass.Label("Hinoki", 15.5, false, true));
-            bn.Children.Add(Glass.Label("v1.2.4", 10, true));
+            bn.Children.Add(Glass.Label("v1.3.0", 10, true));
             brand.Children.Add(bn);
             Grid.SetRow(brand, 0);
             rail.Children.Add(brand);
@@ -434,6 +440,58 @@ namespace Hinoki
             t.Start();
         }
 
+        // ================= icon library =================
+
+        static readonly string[][] IconLibrary = new string[][]
+        {
+            new[] { "E713", "настройки gear settings шестерёнка" },
+            new[] { "E720", "микрофон микрофон mic звукозапись" },
+            new[] { "E74F", "мут выкл off mute тише" },
+            new[] { "E767", "звук громкость volume speaker динамик" },
+            new[] { "E768", "play играть музыка старт пуск" },
+            new[] { "E769", "pause пауза стоп stop" },
+            new[] { "E76E", "эмодзи смайл emoji smile" },
+            new[] { "E70F", "редактировать карандаш edit pencil правка" },
+            new[] { "E721", "поиск search лупа найти" },
+            new[] { "E722", "камера фото camera photo снимок" },
+            new[] { "E72C", "обновить refresh перезагрузка заново" },
+            new[] { "E72E", "замок блокировка lock закрыть" },
+            new[] { "E734", "звезда favorite star избранное лайк" },
+            new[] { "E73E", "галочка check done готово" },
+            new[] { "E74D", "корзина delete удалить мусор bin" },
+            new[] { "E74E", "сохранить save дискета" },
+            new[] { "E765", "клавиатура keyboard" },
+            new[] { "E774", "глобус интернет globe web сеть" },
+            new[] { "E77B", "контакт человек contact user" },
+            new[] { "E787", "календарь calendar дата" },
+            new[] { "E790", "палитра цвет paint palette краска" },
+            new[] { "E7A5", "скриншот crop обрезка снимок" },
+            new[] { "E7BE", "флаг flag метка" },
+            new[] { "E7C3", "страница page документ бумага" },
+            new[] { "E7E7", "звонок уведомление ringer bell колокольчик" },
+            new[] { "E7E8", "питание power выключить on off" },
+            new[] { "E7F4", "монитор экран tv display дисплей" },
+            new[] { "E896", "скачать download стрелка вниз загрузка" },
+            new[] { "E898", "загрузить upload вверх экспорт" },
+            new[] { "E892", "следующий next трек media вперёд" },
+            new[] { "E8A5", "документ document файл file текст" },
+            new[] { "E8A9", "открыть файл openfile" },
+            new[] { "E8B7", "папка folder директория" },
+            new[] { "E8BD", "сообщение message чат comment" },
+            new[] { "E8C8", "копировать copy" },
+            new[] { "E8D6", "музыка нота music note трек" },
+            new[] { "E8EF", "калькулятор calculator посчитать" },
+            new[] { "E8FB", "обновить refresh цикл" },
+            new[] { "E946", "информация info сведения" },
+            new[] { "E9CE", "наушники headphones гарнитура звук" },
+            new[] { "E9D9", "диагностика tools debug wrench" },
+            new[] { "EA3A", "рабочий стол desktop монитор экран" },
+            new[] { "EA80", "игры game геймпад контроллер" },
+            new[] { "E71D", "приложения apps грид все программы" },
+            new[] { "E71B", "ссылка link цепь url адрес" },
+            new[] { "E80F", "список list строки" }
+        };
+
         // ================= petals =================
 
         FrameworkElement BuildPetalsPage()
@@ -583,26 +641,50 @@ namespace Hinoki
             _editor.Children.Add(nameBox);
 
             _editor.Children.Add(Section("Иконка"));
-            var iconPanel = new WrapPanel();
-            iconPanel.Margin = new Thickness(0, 2, 0, 0);
-            string[] glyphs = { "E720", "E74F", "E767", "E768", "E769", "E8D6", "E71D", "E71B", "E713", "E8B7", "E765", "E774", "E734", "E72E", "E722", "E72C" };
+            _iconSearch = new GlassTextBox("", "Поиск иконки… (например: микрофон)", 240);
+            _iconSearch.Margin = new Thickness(0, 2, 0, 8);
+            _editor.Children.Add(_iconSearch);
+
+            _iconPanel = new WrapPanel();
+            _iconPanel.Margin = new Thickness(0, 2, 0, 0);
+            var iconScroll = new ScrollViewer();
+            iconScroll.MaxHeight = 216;
+            iconScroll.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
+            iconScroll.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
+            iconScroll.Content = _iconPanel;
+            _editor.Children.Add(iconScroll);
+
             IconTile.ActiveGroup = new List<IconTile>();
-            foreach (var gl in glyphs)
+            Action<string> rebuildIcons = delegate(string query)
             {
-                var tile = new IconTile(gl);
-                tile.Picked += delegate (string g)
+                _iconPanel.Children.Clear();
+                string q = (query ?? "").Trim().ToLowerInvariant();
+                IconTile.ActiveGroup = new List<IconTile>();
+                int shown = 0;
+                foreach (var def in IconLibrary)
                 {
-                    App.Config.Petals[_selPetal].Icon = g;
-                    App.SaveConfig();
-                    _preview.UpdatePetal(_selPetal);
-                    RefreshPetalList();
-                    Pulse();
-                };
-                IconTile.ActiveGroup.Add(tile);
-                iconPanel.Children.Add(tile);
-                if (gl.Equals(p.Icon, StringComparison.OrdinalIgnoreCase)) tile.SetSelected(true);
-            }
-            _editor.Children.Add(iconPanel);
+                    string tags = def[1];
+                    if (q.Length > 0 && !tags.Contains(q) && !def[0].ToLowerInvariant().Contains(q)) continue;
+                    var gl = def[0];
+                    var tile = new IconTile(gl);
+                    tile.Picked += delegate (string g)
+                    {
+                        App.Config.Petals[_selPetal].Icon = g;
+                        App.SaveConfig();
+                        _preview.UpdatePetal(_selPetal);
+                        RefreshPetalList();
+                        Pulse();
+                    };
+                    IconTile.ActiveGroup.Add(tile);
+                    _iconPanel.Children.Add(tile);
+                    if (gl.Equals(p.Icon, StringComparison.OrdinalIgnoreCase)) tile.SetSelected(true);
+                    shown++;
+                }
+                if (shown == 0)
+                    _iconPanel.Children.Add(Glass.Label("Ничего не найдено — попробуйте по-другому", 12, true));
+            };
+            rebuildIcons("");
+            _iconSearch.Box.TextChanged += delegate { rebuildIcons(_iconSearch.Value); };
 
             _editor.Children.Add(Section("Действие"));
             var actionItems = new List<string>(Actions.Names);
@@ -747,13 +829,14 @@ namespace Hinoki
             var swatches = new StackPanel();
             swatches.Orientation = Orientation.Horizontal;
             swatches.Margin = new Thickness(2, 2, 0, 0);
-            string[] palette = { "A8B899", "7FD8BE", "A8B4E8", "E8B4A0", "E89E9E", "9ED0F0", "E8D5A0", "C9A0E8" };
+            swatches.MaxWidth = 620;
+            string[] palette = { "A8B899", "7FD8BE", "A8B4E8", "E8B4A0", "E89E9E", "9ED0F0", "E8D5A0", "C9A0E8", "F2A6C2", "C4E88C", "E8C89A", "9AE8CF", "B8A8E8", "8CD8B4", "D8D88C", "E89E6C" };
             foreach (var hex in palette)
             {
                 var sw = new Border();
-                sw.Width = 32; sw.Height = 32;
-                sw.CornerRadius = new CornerRadius(16);
-                sw.Margin = new Thickness(0, 0, 10, 0);
+                sw.Width = 30; sw.Height = 30;
+                sw.CornerRadius = new CornerRadius(15);
+                sw.Margin = new Thickness(0, 0, 8, 8);
                 sw.Cursor = Cursors.Hand;
                 byte r = Convert.ToByte(hex.Substring(0, 2), 16);
                 byte g = Convert.ToByte(hex.Substring(2, 2), 16);
@@ -814,6 +897,18 @@ namespace Hinoki
             };
             stack.Children.Add(Setting("Прозрачность центра", null, AttachSlider(cSlider, cVal)));
             stack.Children.Add(Sep());
+            var rVal = Glass.Label(cfgApp.PetalRoundness + "%", 13, true);
+            var rSlider = new GlassSlider(50, 100, cfgApp.PetalRoundness);
+            rSlider.Changed += delegate
+            {
+                App.Config.PetalRoundness = (int)Math.Round(rSlider.Value);
+                rVal.Text = App.Config.PetalRoundness + "%";
+                App.SaveConfig();
+                _preview.Rebuild();
+                Pulse();
+            };
+            stack.Children.Add(Setting("Скругление лепестков", null, AttachSlider(rSlider, rVal)));
+            stack.Children.Add(Sep());
 
             var sizeVal = Glass.Label(cfgApp.MenuSizePercent + "%", 13, true);
             var sizeSlider = new GlassSlider(50, 100, cfgApp.MenuSizePercent);
@@ -824,6 +919,30 @@ namespace Hinoki
                 App.SaveConfig(); Pulse();
             };
             stack.Children.Add(Setting("Размер меню", null, AttachSlider(sizeSlider, sizeVal)));
+            stack.Children.Add(Sep());
+
+            var entranceItems = new List<string> { "Пружина (живой)", "Плавно", "Мгновенно" };
+            var entranceMap = new[] { "spring", "smooth", "instant" };
+            int curEntr = Array.IndexOf(entranceMap, cfgApp.EntranceStyle);
+            var entranceDrop = new GlassDropDown(entranceItems, curEntr < 0 ? 0 : curEntr);
+            entranceDrop.MinWidth = 190;
+            entranceDrop.Changed += delegate
+            {
+                App.Config.EntranceStyle = entranceMap[entranceDrop.SelectedIndex];
+                App.SaveConfig(); Pulse();
+            };
+            stack.Children.Add(Setting("Появление меню", "Как раскрывается цветок", entranceDrop));
+            stack.Children.Add(Sep());
+
+            var spVal = Glass.Label(cfgApp.AnimSpeed + "%", 13, true);
+            var spSlider = new GlassSlider(50, 200, cfgApp.AnimSpeed);
+            spSlider.Changed += delegate
+            {
+                App.Config.AnimSpeed = (int)Math.Round(spSlider.Value);
+                spVal.Text = App.Config.AnimSpeed + "%";
+                App.SaveConfig(); Pulse();
+            };
+            stack.Children.Add(Setting("Скорость анимаций", null, AttachSlider(spSlider, spVal)));
 
             stack.Children.Add(Section("Стекло"));
 
@@ -836,10 +955,6 @@ namespace Hinoki
             tgLabels.Changed += delegate { App.Config.ShowLabels = tgLabels.IsOn; App.SaveConfig(); _preview.Rebuild(); Pulse(); };
             stack.Children.Add(Setting("Показывать названия", "Подписи на лепестках и под кнопкой настроек", tgLabels));
             stack.Children.Add(Sep());
-
-            var tgBlur = new GlassToggle(cfgApp.BlurBackground);
-            tgBlur.Changed += delegate { App.Config.BlurBackground = tgBlur.IsOn; App.SaveConfig(); Pulse(); };
-            stack.Children.Add(Setting("Размытие окна настроек", "Acrylic-фон этого окна. Выключите, если видите артефакты", tgBlur));
 
             return WrapPage("Внешний вид", stack);
         }
@@ -948,7 +1063,7 @@ namespace Hinoki
             var sp = new StackPanel();
             sp.Orientation = Orientation.Horizontal;
             sp.Children.Add(a);
-            sp.Children.Add(b);
+            if (b != null) sp.Children.Add(b);
             return sp;
         }
 
@@ -977,6 +1092,16 @@ namespace Hinoki
             var tgOutside = new GlassToggle(cfgApp.CloseOnOutsideClick);
             tgOutside.Changed += delegate { App.Config.CloseOnOutsideClick = tgOutside.IsOn; App.SaveConfig(); Pulse(); };
             stack.Children.Add(Setting("Закрывать по клику мимо", "Клик в любом другом месте сворачивает меню", tgOutside));
+            stack.Children.Add(Sep());
+            var acVal = Glass.Label(cfgApp.AutoCloseSeconds > 0 ? cfgApp.AutoCloseSeconds + " с" : "выкл", 13, true);
+            var acSlider = new GlassSlider(0, 30, cfgApp.AutoCloseSeconds);
+            acSlider.Changed += delegate
+            {
+                App.Config.AutoCloseSeconds = (int)Math.Round(acSlider.Value);
+                acVal.Text = App.Config.AutoCloseSeconds > 0 ? App.Config.AutoCloseSeconds + " с" : "выкл";
+                App.SaveConfig(); Pulse();
+            };
+            stack.Children.Add(Setting("Автозакрытие меню", "Само свернётся через N секунд без действий (0 — никогда)", NewRow(AttachSlider(acSlider, acVal), null)));
             stack.Children.Add(Sep());
 
             var tgAnim = new GlassToggle(cfgApp.AnimationsEnabled);
@@ -1045,7 +1170,7 @@ namespace Hinoki
             name.Margin = new Thickness(0, 14, 0, 0);
             stack.Children.Add(name);
 
-            var ver = Glass.Label("Версия 1.2.4 · Windows 10/11", 12, true);
+            var ver = Glass.Label("Версия 1.3.0 · Windows 10/11", 12, true);
             ver.HorizontalAlignment = HorizontalAlignment.Center;
             ver.Margin = new Thickness(0, 3, 0, 0);
             stack.Children.Add(ver);

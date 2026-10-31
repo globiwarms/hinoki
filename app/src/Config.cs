@@ -49,6 +49,10 @@ namespace Hinoki
         public int PetalOpacity { get; set; }      // 30..100
         public int GlowStrength { get; set; }      // 0..100
         public int CenterOpacity { get; set; }     // 30..100
+        public int PetalRoundness { get; set; }    // 50..100 (% of capsule radius)
+        public int AnimSpeed { get; set; }         // 50..200 (%)
+        public string EntranceStyle { get; set; }  // spring | smooth | instant
+        public int AutoCloseSeconds { get; set; }  // 0 = off
         public bool BlurBackground { get; set; }   // glass blur inside settings window
         public bool LightGlass { get; set; }       // light glass theme for petals
 
@@ -105,7 +109,14 @@ namespace Hinoki
                         {
                             cfg.CenterOpacity = 92;
                         }
-                        cfg.Version = 4;
+                        if (cfg.Version < 5)
+                        {
+                            cfg.PetalRoundness = 100;
+                            cfg.AnimSpeed = 100;
+                            cfg.EntranceStyle = "spring";
+                            cfg.AutoCloseSeconds = 0;
+                        }
+                        cfg.Version = 5;
                         cfg.Normalize();
                         return cfg;
                     }
@@ -136,6 +147,13 @@ namespace Hinoki
             if (GlowStrength > 100) GlowStrength = 100;
             if (CenterOpacity < 30) CenterOpacity = 30;
             if (CenterOpacity > 100) CenterOpacity = 100;
+            if (PetalRoundness < 50) PetalRoundness = 50;
+            if (PetalRoundness > 100) PetalRoundness = 100;
+            if (AnimSpeed < 50) AnimSpeed = 50;
+            if (AnimSpeed > 200) AnimSpeed = 200;
+            if (AutoCloseSeconds < 0) AutoCloseSeconds = 0;
+            if (AutoCloseSeconds > 30) AutoCloseSeconds = 30;
+            if (EntranceStyle != "spring" && EntranceStyle != "smooth" && EntranceStyle != "instant") EntranceStyle = "spring";
             if (SoundVolume < 0) SoundVolume = 0;
             if (SoundVolume > 100) SoundVolume = 100;
             if (string.IsNullOrEmpty(AccentHex)) AccentHex = "A8B899";
@@ -159,7 +177,7 @@ namespace Hinoki
         public static AppConfig Defaults()
         {
             var c = new AppConfig();
-            c.Version = 4;
+            c.Version = 5;
             c.InterceptClick = true;
             c.ShowAtCursor = true;
             c.CloseAfterAction = true;
@@ -175,6 +193,10 @@ namespace Hinoki
             c.PetalOpacity = 92;
             c.GlowStrength = 40;
             c.CenterOpacity = 92;
+            c.PetalRoundness = 100;
+            c.AnimSpeed = 100;
+            c.EntranceStyle = "spring";
+            c.AutoCloseSeconds = 0;
             c.BlurBackground = true;
             c.LightGlass = false;
             c.SoundEnabled = true;
@@ -241,6 +263,12 @@ namespace Hinoki
             return g;
         }
 
+        public static double AnimFactor()
+        {
+            var cfg = App.Config;
+            return cfg != null ? cfg.AnimSpeed / 100.0 : 1.0;
+        }
+
         public static char Glyph(string hex)
         {
             int code;
@@ -263,7 +291,9 @@ namespace Hinoki
             "task_manager", "windows_settings", "calculator",
             "emoji_panel", "paste_clipboard",
             "open_steam", "open_config", "open_settings",
-            "open_downloads", "open_desktop", "open_documents"
+            "open_downloads", "open_desktop", "open_documents",
+            "copy", "monitor_off", "clear_recycle_bin", "open_discord", "open_spotify",
+            "search_start", "notification_center"
         };
 
         public static readonly string[] Names = new string[]
@@ -300,7 +330,14 @@ namespace Hinoki
             "Открыть настройки Hinoki",
             "Открыть папку Загрузки",
             "Открыть папку Рабочий стол",
-            "Открыть папку Документы"
+            "Открыть папку Документы",
+            "Копировать выделенное",
+            "Выключить монитор",
+            "Очистить корзину",
+            "Открыть Discord",
+            "Открыть Spotify",
+            "Поиск Windows",
+            "Центр уведомлений"
         };
 
         public static string NameOf(string key)
@@ -345,6 +382,13 @@ namespace Hinoki
                 case "open_downloads": return "E896";
                 case "open_desktop": return "E9F9";
                 case "open_documents": return "E8A5";
+                case "copy": return "E8C8";
+                case "monitor_off": return "E7F4";
+                case "clear_recycle_bin": return "E74D";
+                case "open_discord": return "E8BD";
+                case "open_spotify": return "EC4F";
+                case "search_start": return "E721";
+                case "notification_center": return "E7E7";
                 default: return "E713";
             }
         }

@@ -117,6 +117,17 @@ namespace Hinoki
             Show();
             Sounds.Play("open");
             _flower.PlayIn();
+
+            if (App.Config.AutoCloseSeconds > 0)
+            {
+                var auto = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(App.Config.AutoCloseSeconds) };
+                auto.Tick += delegate
+                {
+                    auto.Stop();
+                    if (Current == this) SafeClose();
+                };
+                auto.Start();
+            }
         }
 
         void OnEsc()
@@ -138,8 +149,14 @@ namespace Hinoki
             KeyboardHook.EscPressed -= OnEsc;
             KeyboardHook.Uninstall();
             Sounds.Play("close");
-            if (App.Config != null && !App.Config.AnimationsEnabled) { Close(); return; }
-            if (_flower != null) _flower.PlayOut(delegate { Close(); });
+            if (App.Config != null && (!App.Config.AnimationsEnabled || App.Config.EntranceStyle == "instant")) { Close(); return; }
+            double sp = App.Config != null ? App.Config.AnimSpeed / 100.0 : 1.0;
+            if (_flower != null)
+            {
+                var fade = new System.Windows.Media.Animation.DoubleAnimation(0, new Duration(TimeSpan.FromMilliseconds(170 / sp)));
+                fade.Completed += delegate { Close(); };
+                BeginAnimation(OpacityProperty, fade);
+            }
             else Close();
         }
 

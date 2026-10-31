@@ -141,7 +141,7 @@ namespace Hinoki
                 }
                 Box.GotKeyboardFocus += delegate
                 {
-                    if ((string)Box.Tag == Box.Text && Box.SelectionLength == Box.Text.Length) { Box.Foreground = Ui.Solid(Ui.Ink, 0.97); Box.Text = ""; }
+                    if ((string)Box.Tag == Box.Text) { Box.Foreground = Ui.Solid(Ui.Ink, 0.97); Box.Text = ""; }
                 };
                 Box.LostKeyboardFocus += delegate
                 {

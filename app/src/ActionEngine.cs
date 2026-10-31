@@ -53,6 +53,13 @@ namespace Hinoki
                 case "calculator": Shell("calc", ""); break;
                 case "emoji_panel": PressCombo("Win+."); break;
                 case "paste_clipboard": PressCombo("Ctrl+V"); break;
+                case "copy": PressCombo("Ctrl+C"); break;
+                case "monitor_off": MonitorOff(); break;
+                case "clear_recycle_bin": Shell("powershell.exe", "-NoProfile -Command Clear-RecycleBin -Force -ErrorAction SilentlyContinue"); break;
+                case "open_discord": OpenLink("discord://"); break;
+                case "open_spotify": OpenLink("spotify:"); break;
+                case "search_start": PressCombo("Win+S"); break;
+                case "notification_center": PressCombo("Win+N"); break;
                 case "open_steam": OpenLink("steam://open/games"); break;
                 case "open_config": OpenLink(AppConfig.Dir); break;
                 case "open_downloads": Shell("explorer.exe", "shell:Downloads"); break;
@@ -188,6 +195,11 @@ namespace Hinoki
                 }
             }
             catch (Exception ex) { Report("Hinoki", "Скриншот не получился: " + ex.Message); }
+        }
+
+        static void MonitorOff()
+        {
+            Native.SendMessageW(new IntPtr(0xFFFF), 0x0112, new IntPtr(0xF170), new IntPtr(2));
         }
 
         static void MinimizeActive()

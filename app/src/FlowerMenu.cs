@@ -32,7 +32,8 @@ namespace Hinoki
             bool light = cfgApp != null && cfgApp.LightGlass;
             double glow = cfgApp != null ? 0.10 + 0.85 * (cfgApp.GlowStrength / 100.0) : 0.4;
 
-            double r = h * 0.48;
+            double round = cfgApp != null ? cfgApp.PetalRoundness / 100.0 : 1.0;
+            double r = Math.Min(h * 0.48, h * 0.48 * round);
             var shapeHost = new Border();
             shapeHost.Width = w; shapeHost.Height = h;
             shapeHost.CornerRadius = new CornerRadius(r);
@@ -153,24 +154,29 @@ namespace Hinoki
 
         public void PlayIn(TimeSpan delay)
         {
-            if (App.Config != null && !App.Config.AnimationsEnabled)
+            var cfgApp = App.Config;
+            string style = cfgApp != null ? cfgApp.EntranceStyle : "spring";
+            if (cfgApp != null && (!cfgApp.AnimationsEnabled || style == "instant"))
             {
                 Scale.ScaleX = 1; Scale.ScaleY = 1;
                 Opacity = 1;
                 return;
             }
+            double sp = cfgApp != null ? cfgApp.AnimSpeed / 100.0 : 1.0;
             Scale.ScaleX = 0.35; Scale.ScaleY = 0.35;
             Opacity = 0;
-            var t = new System.Windows.Threading.DispatcherTimer { Interval = delay };
+            var t = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(delay.TotalMilliseconds / sp) };
             t.Tick += delegate
             {
                 t.Stop();
-                var e = new BackEase { Amplitude = 0.45, EasingMode = EasingMode.EaseOut };
-                var gx = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(460))) { EasingFunction = e };
-                var gy = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(460))) { EasingFunction = e };
+                IEasingFunction e;
+                if (style == "smooth") e = new CubicEase { EasingMode = EasingMode.EaseOut };
+                else e = new BackEase { Amplitude = 0.45, EasingMode = EasingMode.EaseOut };
+                var gx = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(460 / sp))) { EasingFunction = e };
+                var gy = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(460 / sp))) { EasingFunction = e };
                 Scale.BeginAnimation(ScaleTransform.ScaleXProperty, gx);
                 Scale.BeginAnimation(ScaleTransform.ScaleYProperty, gy);
-                var go = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(220)));
+                var go = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(220 / sp)));
                 BeginAnimation(UIElement.OpacityProperty, go);
             };
             t.Start();
@@ -362,19 +368,33 @@ namespace Hinoki
 
         public void PlayIn()
         {
+            var cfgApp = App.Config;
+            string style = cfgApp != null ? cfgApp.EntranceStyle : "spring";
+            double sp = cfgApp != null ? cfgApp.AnimSpeed / 100.0 : 1.0;
+            bool instant = cfgApp != null && (!cfgApp.AnimationsEnabled || style == "instant");
+
+            if (instant)
+            {
+                Opacity = 1;
+                var cstI = (ScaleTransform)_centerGroup.RenderTransform;
+                cstI.ScaleX = 1; cstI.ScaleY = 1;
+                _centerGroup.Opacity = 1;
+                return;
+            }
+
             Opacity = 0;
-            var fade = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(200)));
+            var fade = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(200 / sp)));
             fade.EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut };
             BeginAnimation(OpacityProperty, fade);
 
             var cst = (ScaleTransform)_centerGroup.RenderTransform;
             _centerGroup.Opacity = 0;
-            var cgo = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(240)));
+            var cgo = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(240 / sp)));
             _centerGroup.BeginAnimation(OpacityProperty, cgo);
-            AnimateScale(cst, 1, 420, 0.55);
+            AnimateScale(cst, 1, (int)(420 / sp), 0.55);
 
             for (int i = 0; i < _petals.Count; i++)
-                _petals[i].PlayIn(TimeSpan.FromMilliseconds(40 + i * 40));
+                _petals[i].PlayIn(TimeSpan.FromMilliseconds((40 + i * 40) / sp));
         }
 
         public void PlayOut(Action done)
