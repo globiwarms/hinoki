@@ -96,6 +96,10 @@ namespace Hinoki
             _chrome.BorderBrush = Ui.Solid(Colors.White, 0.09);
             _chrome.BorderThickness = new Thickness(1);
             _chrome.ClipToBounds = true;
+            _chrome.SizeChanged += delegate(object snd, SizeChangedEventArgs ev)
+            {
+                _chrome.Clip = new RectangleGeometry(new Rect(0, 0, ev.NewSize.Width, ev.NewSize.Height), 22, 22);
+            };
 
             // one subtle accent breath behind everything — the only decoration
             var blob = new Ellipse();
@@ -227,7 +231,7 @@ namespace Hinoki
             bn.VerticalAlignment = VerticalAlignment.Center;
             bn.Margin = new Thickness(10, 0, 0, 0);
             bn.Children.Add(Glass.Label("Hinoki", 15.5, false, true));
-            bn.Children.Add(Glass.Label("v3.0.0", 10, true));
+            bn.Children.Add(Glass.Label("v1.1", 10, true));
             brand.Children.Add(bn);
             Grid.SetRow(brand, 0);
             rail.Children.Add(brand);
@@ -879,19 +883,6 @@ namespace Hinoki
             _editor.Children.Add(colorRow);
             _editor.Children.Add(Note("Первый вариант — прозрачное стекло как у всех. Остальные — свой цвет лепестка."));
 
-            _editor.Children.Add(Section("Горячая клавиша"));
-            var hk = new HotkeyBox(p.Hotkey ?? "");
-            hk.Margin = new Thickness(0, 2, 0, 0);
-            hk.Changed += delegate
-            {
-                App.Config.Petals[_selPetal].Hotkey = hk.Combo;
-                App.SaveConfig();
-                App.ApplyPetalHotkeys();
-                Pulse();
-            };
-            _editor.Children.Add(hk);
-            _editor.Children.Add(Note("Глобальное сочетание — нажмёте в любом месте, лепесток сработает."));
-
             _editor.Children.Add(Section("Действие"));
             var actionItems = new List<string>(Actions.Names);
             var drop = new GlassDropDown(actionItems, Math.Max(0, Array.IndexOf(Actions.Keys, p.Action)));
@@ -1160,9 +1151,12 @@ namespace Hinoki
             var host = new Grid();
             host.MinWidth = 240;
             host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            host.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(52) });
             slider.MinWidth = 170;
             slider.Margin = new Thickness(0, 0, 10, 0);
+            value.Width = 52;
+            value.HorizontalAlignment = HorizontalAlignment.Right;
+            value.TextAlignment = TextAlignment.Right;
             Grid.SetColumn(slider, 0);
             host.Children.Add(slider);
             Grid.SetColumn(value, 1);
@@ -1386,12 +1380,12 @@ namespace Hinoki
             name.Margin = new Thickness(0, 14, 0, 0);
             stack.Children.Add(name);
 
-            var ver = Glass.Label("Версия 3.0.0 · Windows 10/11", 12, true);
+            var ver = Glass.Label("Версия 1.1 · Windows 10/11", 12, true);
             ver.HorizontalAlignment = HorizontalAlignment.Center;
             ver.Margin = new Thickness(0, 3, 0, 0);
             stack.Children.Add(ver);
 
-            var desc = Glass.Label("Средняя кнопка мыши — и всё под рукой: микрофон, звук, музыка, приложения. Стеклянный цветок, который всегда рядом.", 12.5, true);
+            var desc = Glass.Label("Стеклянный цветок по средней кнопке мыши. Микрофон, звук, скриншоты, приложения — всё под рукой.", 12.5, true);
             desc.TextWrapping = TextWrapping.Wrap;
             desc.TextAlignment = TextAlignment.Center;
             desc.LineHeight = 19;

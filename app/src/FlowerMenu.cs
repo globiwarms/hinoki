@@ -41,6 +41,25 @@ namespace Hinoki
         }
     }
 
+    public static class LucideHost
+    {
+        public static UIElement Build(string name, double size, bool light)
+        {
+            var path = new System.Windows.Shapes.Path();
+            path.Data = Lucide.Get(name);
+            path.Stretch = Stretch.Uniform;
+            path.Stroke = light ? Ui.Solid(Color.FromRgb(0x24, 0x2B, 0x1E), 0.95) : Ui.Solid(Colors.White, 0.95);
+            path.StrokeThickness = 1.6;
+            path.StrokeLineJoin = PenLineJoin.Round;
+            path.StrokeStartLineCap = PenLineCap.Round;
+            path.StrokeEndLineCap = PenLineCap.Round;
+            path.Width = size; path.Height = size;
+            path.HorizontalAlignment = HorizontalAlignment.Center;
+            path.VerticalAlignment = VerticalAlignment.Center;
+            return path;
+        }
+    }
+
     /// <summary>One glass petal with icon + label, hover glow and press feedback.</summary>
     public class PetalView : Border
     {
@@ -54,13 +73,12 @@ namespace Hinoki
         UIElement _iconHost;
         ContentControl _iconWrap;
         bool _muted;
-        Border _shapeRef;
 
         public PetalView(int index, PetalConfig cfg, double w, double h)
         {
             Index = index; Config = cfg;
             Width = w; Height = h;
-            Background = Brushes.Transparent; // hit-test root
+            Background = Brushes.Transparent;
             Cursor = Cursors.Hand;
 
             var cfgApp = App.Config;
@@ -73,15 +91,13 @@ namespace Hinoki
             var shapeHost = new Border();
             shapeHost.Width = w; shapeHost.Height = h;
             shapeHost.CornerRadius = new CornerRadius(r);
-            shapeHost.Background = light ? Ui.GlassFill(0.72 * k, 0.42 * k) : Ui.GlassFill(0.26 * k, 0.10 * k);
-            shapeHost.BorderBrush = Ui.Solid(Colors.White, light ? 0.62 : 0.36);
+            ApplyTint(shapeHost, cfg, k, light);
             shapeHost.BorderThickness = new Thickness(1.2);
             var glowFx = new DropShadowEffect();
             glowFx.Color = light ? Colors.Black : Colors.White;
             glowFx.BlurRadius = 26; glowFx.ShadowDepth = 0; glowFx.Opacity = glow;
             shapeHost.Effect = glowFx;
             _shape = shapeHost;
-            _shapeRef = shapeHost;
 
             var grid = new Grid();
 
@@ -111,7 +127,6 @@ namespace Hinoki
 
             shapeHost.Child = grid;
 
-            // content layer stays horizontal while the shape rotates
             var content = new Grid();
             content.Background = Brushes.Transparent;
             var contentStack = new StackPanel();
@@ -122,6 +137,7 @@ namespace Hinoki
             _iconWrap = new ContentControl();
             _iconWrap.Content = _iconHost;
             _iconWrap.HorizontalAlignment = HorizontalAlignment.Center;
+            contentStack.Children.Add(_iconWrap);
 
             _label = new TextBlock();
             _label.Text = cfg.Label;
@@ -134,9 +150,8 @@ namespace Hinoki
             _label.TextTrimming = TextTrimming.CharacterEllipsis;
             _label.MaxWidth = w * 0.84;
             _label.Visibility = (cfgApp != null && !cfgApp.ShowLabels) ? Visibility.Collapsed : Visibility.Visible;
-
-            contentStack.Children.Add(_iconWrap);
             contentStack.Children.Add(_label);
+
             content.Children.Add(contentStack);
 
             var root = new Grid();
@@ -148,6 +163,7 @@ namespace Hinoki
             var rootTg = new TransformGroup();
             rootTg.Children.Add(Scale);
             rootTg.Children.Add(_floatY);
+            rootTg.Children.Add(_floatX);
             RenderTransform = rootTg;
 
             MouseEnter += delegate { Hover(true); };
@@ -161,7 +177,28 @@ namespace Hinoki
 
         public event Action<int> Activated;
 
-        static UIElement MakeIconVisual(string icon, double size, bool light)
+        static void ApplyTint(Border shape, PetalConfig cfg, double k, bool light)
+        {
+            Color tint;
+            bool custom = Ui.TryParseHex(cfg.Color ?? "", out tint);
+            if (custom)
+            {
+                var g = new LinearGradientBrush();
+                g.StartPoint = new Point(0, 0); g.EndPoint = new Point(0, 1);
+                g.GradientStops.Add(new GradientStop(Color.FromArgb((byte)(115 * k), tint.R, tint.G, tint.B), 0));
+                g.GradientStops.Add(new GradientStop(Color.FromArgb((byte)(60 * k), tint.R, tint.G, tint.B), 1));
+                g.Freeze();
+                shape.Background = g;
+                shape.BorderBrush = Ui.Solid(tint, 0.62);
+            }
+            else
+            {
+                shape.Background = light ? Ui.GlassFill(0.72 * k, 0.42 * k) : Ui.GlassFill(0.26 * k, 0.10 * k);
+                shape.BorderBrush = Ui.Solid(Colors.White, light ? 0.62 : 0.36);
+            }
+        }
+
+        static UIElement BuildIconVisual(string icon, double size, bool light)
         {
             var path = new System.Windows.Shapes.Path();
             path.Data = Lucide.Get(icon);
@@ -179,7 +216,6 @@ namespace Hinoki
 
         UIElement BuildIconHost(PetalConfig cfg, double size)
         {
-            // app icon for "Открыть приложение" with a real file target
             if (cfg.Action == "app" && !string.IsNullOrWhiteSpace(cfg.Target))
             {
                 string t = cfg.Target.Trim();
@@ -191,16 +227,15 @@ namespace Hinoki
                     if (src != null) { img.Source = src; img.Width = size; img.Height = size; return img; }
                 }
             }
-            return MakeIconVisual(cfg.Icon, size, App.Config != null && App.Config.LightGlass);
+            bool light = App.Config != null && App.Config.LightGlass;
+            return BuildIconVisual(cfg.Icon, size, light);
         }
 
-        /// <summary>Rebuild the icon visual (after target/icon changes).</summary>
         public void RefreshIcon()
         {
             var root = (Grid)Child;
             var content = (Grid)root.Children[1];
             var stack = (StackPanel)content.Children[0];
-            // remove the OLD wrapper (it still holds the previous icon visual)
             if (_iconWrap != null)
             {
                 stack.Children.Remove(_iconWrap);
@@ -214,25 +249,46 @@ namespace Hinoki
             stack.Children.Insert(0, _iconWrap);
         }
 
-        /// <summary>Red tint when a toggle action is currently OFF (muted).</summary>
+        public void RefreshTint(PetalConfig cfg)
+        {
+            var cfgApp = App.Config;
+            double k = cfgApp != null ? cfgApp.PetalOpacity / 100.0 : 1.0;
+            bool light = cfgApp != null && cfgApp.LightGlass;
+            Color tint;
+            bool custom = Ui.TryParseHex(cfg.Color ?? "", out tint);
+            if (_shape == null) return;
+            if (custom)
+            {
+                var g = new LinearGradientBrush();
+                g.StartPoint = new Point(0, 0); g.EndPoint = new Point(0, 1);
+                g.GradientStops.Add(new GradientStop(Color.FromArgb((byte)(115 * k), tint.R, tint.G, tint.B), 0));
+                g.GradientStops.Add(new GradientStop(Color.FromArgb((byte)(60 * k), tint.R, tint.G, tint.B), 1));
+                g.Freeze();
+                _shape.Background = g;
+                _shape.BorderBrush = Ui.Solid(tint, 0.62);
+            }
+            else
+            {
+                _shape.Background = light ? Ui.GlassFill(0.72 * k, 0.42 * k) : Ui.GlassFill(0.26 * k, 0.10 * k);
+                _shape.BorderBrush = Ui.Solid(Colors.White, light ? 0.62 : 0.36);
+            }
+        }
+
         public void SetMuted(bool muted)
         {
             _muted = muted;
             if (_mutedLayer == null) return;
-            Animate(_mutedLayer, "Opacity", muted ? 1 : 0, 260);
+            var a = new DoubleAnimation(muted ? 1 : 0, new Duration(TimeSpan.FromMilliseconds(260)));
+            a.EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut };
+            _mutedLayer.BeginAnimation(OpacityProperty, a);
         }
 
-        /// <summary>Rotate only the glass shape; the icon and label stay horizontal.
-        /// The rotation lives on the inner shape (root keeps a clean center-origin scale),
-        /// otherwise RenderTransformOrigin compounds with the group and petals drift off-orbit.</summary>
         public void RotateShape(double theta)
         {
-            RenderTransform = Scale; // scale around RenderTransformOrigin (0.5, 0.5)
-            // only the inner glass shape rotates — the content layer is separate and stays horizontal
+            RenderTransform = Scale;
             _shape.RenderTransform = new RotateTransform(theta, Width / 2, Height / 2);
         }
 
-        /// <summary>Gentle perpetual float — the glass feels alive.</summary>
         public void StartFloat(int index)
         {
             if (App.Config != null && !App.Config.AnimationsEnabled) return;
@@ -250,23 +306,39 @@ namespace Hinoki
 
         void Hover(bool on)
         {
-            Animate(_hoverLayer, "Opacity", on ? 1 : 0, 200);
-            AnimateScale(Scale, on ? 1.035 : 1, 260);
+            var a = new DoubleAnimation(on ? 1 : 0, new Duration(TimeSpan.FromMilliseconds(200)));
+            a.EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut };
+            _hoverLayer.BeginAnimation(OpacityProperty, a);
+            var e = new BackEase { Amplitude = 0.22, EasingMode = EasingMode.EaseOut };
+            var sx = new DoubleAnimation(on ? 1.035 : 1, new Duration(TimeSpan.FromMilliseconds(260))) { EasingFunction = e };
+            var sy = new DoubleAnimation(on ? 1.035 : 1, new Duration(TimeSpan.FromMilliseconds(260))) { EasingFunction = e };
+            Scale.BeginAnimation(ScaleTransform.ScaleXProperty, sx);
+            Scale.BeginAnimation(ScaleTransform.ScaleYProperty, sy);
         }
 
         void Press()
         {
-            AnimateScale(Scale, 1.09, 110);
+            var e = new BackEase { Amplitude = 0.3, EasingMode = EasingMode.EaseOut };
+            var sx = new DoubleAnimation(1.09, new Duration(TimeSpan.FromMilliseconds(110))) { EasingFunction = e };
+            var sy = new DoubleAnimation(1.09, new Duration(TimeSpan.FromMilliseconds(110))) { EasingFunction = e };
+            Scale.BeginAnimation(ScaleTransform.ScaleXProperty, sx);
+            Scale.BeginAnimation(ScaleTransform.ScaleYProperty, sy);
         }
 
         public void ReleasePulse()
         {
-            AnimateScale(Scale, 1.0, 260);
+            var e = new BackEase { Amplitude = 0.3, EasingMode = EasingMode.EaseOut };
+            var sx = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(260))) { EasingFunction = e };
+            var sy = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(260))) { EasingFunction = e };
+            Scale.BeginAnimation(ScaleTransform.ScaleXProperty, sx);
+            Scale.BeginAnimation(ScaleTransform.ScaleYProperty, sy);
         }
 
         public void SetSelected(bool sel)
         {
-            Animate(_ring, "Opacity", sel ? 1 : 0, 180);
+            var a = new DoubleAnimation(sel ? 1 : 0, new Duration(TimeSpan.FromMilliseconds(180)));
+            a.EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut };
+            _ring.BeginAnimation(OpacityProperty, a);
             if (sel) _label.Foreground = Ui.Solid(Ui.Accent, 1);
         }
 
@@ -277,46 +349,22 @@ namespace Hinoki
             _label.Text = cfg.Label;
         }
 
-        /// <summary>Apply per-petal tint color ("" = default glass).</summary>
-        public void RefreshTint(PetalConfig cfg)
-        {
-            var cfgApp = App.Config;
-            double k = cfgApp != null ? cfgApp.PetalOpacity / 100.0 : 1.0;
-            bool light = cfgApp != null && cfgApp.LightGlass;
-            Color tint;
-            bool custom = Ui.TryParseHex(cfg.Color, out tint);
-            if (_shapeRef == null) return;
-            if (custom)
-            {
-                var g = new LinearGradientBrush();
-                g.StartPoint = new Point(0, 0); g.EndPoint = new Point(0, 1);
-                g.GradientStops.Add(new GradientStop(Color.FromArgb((byte)(115 * k), tint.R, tint.G, tint.B), 0));
-                g.GradientStops.Add(new GradientStop(Color.FromArgb((byte)(60 * k), tint.R, tint.G, tint.B), 1));
-                g.Freeze();
-                _shapeRef.Background = g;
-                _shapeRef.BorderBrush = Ui.Solid(tint, 0.62);
-            }
-            else
-            {
-                _shapeRef.Background = light ? Ui.GlassFill(0.72 * k, 0.42 * k) : Ui.GlassFill(0.26 * k, 0.10 * k);
-                _shapeRef.BorderBrush = Ui.Solid(Colors.White, light ? 0.62 : 0.36);
-            }
-        }
-
         public void PlayIn(TimeSpan delay)
         {
             var cfgApp = App.Config;
             string style = cfgApp != null ? cfgApp.EntranceStyle : "spring";
-            if (cfgApp != null && (!cfgApp.AnimationsEnabled || style == "instant"))
+            double sp = cfgApp != null ? cfgApp.AnimSpeed / 100.0 : 1.0;
+            bool instant = cfgApp != null && (!cfgApp.AnimationsEnabled || style == "instant");
+
+            if (instant)
             {
                 Scale.ScaleX = 1; Scale.ScaleY = 1;
                 Opacity = 1;
                 return;
             }
-            double sp = cfgApp != null ? cfgApp.AnimSpeed / 100.0 : 1.0;
             Scale.ScaleX = 0.35; Scale.ScaleY = 0.35;
             Opacity = 0;
-            var t = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(delay.TotalMilliseconds / sp) };
+            var t = new System.Windows.Threading.DispatcherTimer { Interval = delay };
             t.Tick += delegate
             {
                 t.Stop();
@@ -327,7 +375,7 @@ namespace Hinoki
                 else if (style == "bounce") e = new BounceEase { Bounces = 2, Bounciness = 2.4, EasingMode = EasingMode.EaseOut };
                 else if (style == "ripple") e = new BackEase { Amplitude = 0.8, EasingMode = EasingMode.EaseOut };
                 else e = new BackEase { Amplitude = 0.45, EasingMode = EasingMode.EaseOut };
-                if (pureFade) Scale.ScaleX = 1; Scale.ScaleY = 1;
+                if (pureFade) { Scale.ScaleX = 1; Scale.ScaleY = 1; }
                 var gx = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds((pureFade ? 10 : 460) / sp))) { EasingFunction = e };
                 var gy = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds((pureFade ? 10 : 460) / sp))) { EasingFunction = e };
                 Scale.BeginAnimation(ScaleTransform.ScaleXProperty, gx);
@@ -337,25 +385,9 @@ namespace Hinoki
             };
             t.Start();
         }
-
-        static void AnimateScale(ScaleTransform st, double to, int ms)
-        {
-            var e = new BackEase { Amplitude = 0.22, EasingMode = EasingMode.EaseOut };
-            var ax = new DoubleAnimation(to, new Duration(TimeSpan.FromMilliseconds(ms))) { EasingFunction = e };
-            var ay = new DoubleAnimation(to, new Duration(TimeSpan.FromMilliseconds(ms))) { EasingFunction = e };
-            st.BeginAnimation(ScaleTransform.ScaleXProperty, ax);
-            st.BeginAnimation(ScaleTransform.ScaleYProperty, ay);
-        }
-
-        static void Animate(UIElement el, string prop, double to, int ms)
-        {
-            var a = new DoubleAnimation(to, new Duration(TimeSpan.FromMilliseconds(ms)));
-            a.EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut };
-            if (prop == "Opacity") el.BeginAnimation(UIElement.OpacityProperty, a);
-        }
     }
 
-    /// <summary>The flower: glass petals around a settings-button heart.</summary>
+    /// <summary>The full flower: glass petals around a settings gear button.</summary>
     public class FlowerMenu : Canvas
     {
         public event Action<int> PetalActivated;
@@ -365,7 +397,6 @@ namespace Hinoki
         Border _centerCircle;
         StackPanel _centerGroup;
         double _size;
-        RotateTransform _gearRotate;
 
         public FlowerMenu(double size)
         {
@@ -404,9 +435,8 @@ namespace Hinoki
             var cfg = App.Config;
             int n = cfg.Petals.Count;
 
-            double R = S * 0.335;                                  // orbit radius
-            double ph = S * 0.27;                                  // petal height
-            // petals never overlap: cap width by the space between neighbours
+            double R = S * 0.335;
+            double ph = S * 0.27;
             double pw = Math.Min(S * 0.30, 2 * R * Math.Sin(Math.PI / n) * 0.90);
             double centerD = S * 0.14;
             bool light = cfg.LightGlass;
@@ -427,23 +457,19 @@ namespace Hinoki
                 _petals.Add(pv);
             }
 
-            // ---- center: glass settings button ----
-            if (!cfg.ShowCenterButton)
-            {
-                return; // petals only
-            }
+            if (!cfg.ShowCenterButton) return;
 
             _centerGroup = new StackPanel();
             _centerGroup.HorizontalAlignment = HorizontalAlignment.Center;
             _centerGroup.VerticalAlignment = VerticalAlignment.Top;
 
             double k = cfg.PetalOpacity / 100.0;
+            double ck = cfg.CenterOpacity / 100.0;
             _centerCircle = new Border();
             _centerCircle.Width = centerD; _centerCircle.Height = centerD;
             _centerCircle.CornerRadius = new CornerRadius(centerD);
-            double ck = cfg.CenterOpacity / 100.0;
             _centerCircle.Background = light ? Ui.GlassFill(0.80 * ck, 0.55 * ck) : Ui.GlassFill(0.30 * ck, 0.16 * ck);
-            _centerCircle.BorderBrush = Ui.Solid(Colors.White, (light ? 0.7 : 0.5) * ck);
+            _centerCircle.BorderBrush = Ui.Solid(Colors.White, light ? 0.7 : 0.5);
             _centerCircle.BorderThickness = new Thickness(1.4);
             var cg = new DropShadowEffect();
             cg.Color = Colors.White; cg.BlurRadius = 24; cg.ShadowDepth = 0;
@@ -464,14 +490,12 @@ namespace Hinoki
             gearPath.StrokeLineJoin = PenLineJoin.Round;
             gearPath.StrokeStartLineCap = PenLineCap.Round;
             gearPath.StrokeEndLineCap = PenLineCap.Round;
-            var gearRot = new RotateTransform(0);
-            gearPath.RenderTransform = gearRot;
             gearCanvas.Children.Add(gearPath);
             gearHost.Child = gearCanvas;
-            _gearRotate = gearRot;
             _centerCircle.Child = gearHost;
 
             _centerGroup.Children.Add(_centerCircle);
+
             _centerGroup.RenderTransformOrigin = new Point(0.5, 0);
             var cst = new ScaleTransform(1, 1);
             _centerGroup.RenderTransform = cst;
@@ -480,24 +504,12 @@ namespace Hinoki
                 AnimateScale(cst, 1.04, 240);
                 cg.BeginAnimation(DropShadowEffect.OpacityProperty,
                     new DoubleAnimation(0.7, new Duration(TimeSpan.FromMilliseconds(240))));
-                if (_gearRotate != null)
-                {
-                    var spin = new DoubleAnimation(45, new Duration(TimeSpan.FromMilliseconds(420)));
-                    spin.EasingFunction = new BackEase { Amplitude = 0.4, EasingMode = EasingMode.EaseOut };
-                    _gearRotate.BeginAnimation(RotateTransform.AngleProperty, spin);
-                }
             };
             _centerGroup.MouseLeave += delegate
             {
                 AnimateScale(cst, 1, 240);
                 cg.BeginAnimation(DropShadowEffect.OpacityProperty,
                     new DoubleAnimation(0.18 + 0.5 * (cfg.GlowStrength / 100.0), new Duration(TimeSpan.FromMilliseconds(240))));
-                if (_gearRotate != null)
-                {
-                    var spin = new DoubleAnimation(0, new Duration(TimeSpan.FromMilliseconds(420)));
-                    spin.EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut };
-                    _gearRotate.BeginAnimation(RotateTransform.AngleProperty, spin);
-                }
             };
             _centerGroup.MouseLeftButtonDown += delegate
             {
@@ -519,6 +531,7 @@ namespace Hinoki
         public void Rebuild()
         {
             Build();
+            RefreshToggleStates();
         }
 
         public void SetSelected(int index)
@@ -538,15 +551,15 @@ namespace Hinoki
             }
         }
 
+        public void ReleasePulseAt(int index)
+        {
+            if (index >= 0 && index < _petals.Count) _petals[index].ReleasePulse();
+        }
+
         public void StartFloats()
         {
             for (int i = 0; i < _petals.Count; i++)
                 _petals[i].StartFloat(i);
-        }
-
-        public void ReleasePulseAt(int index)
-        {
-            if (index >= 0 && index < _petals.Count) _petals[index].ReleasePulse();
         }
 
         void OnPetalActivated(int index)
@@ -555,7 +568,6 @@ namespace Hinoki
             if (h != null) h(index);
         }
 
-        /// <summary>Set all initial (hidden) states BEFORE the window is shown — kills first-frame flicker.</summary>
         public void PrepareIn()
         {
             Opacity = 0;
@@ -591,11 +603,14 @@ namespace Hinoki
             fade.EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut };
             BeginAnimation(OpacityProperty, fade);
 
-            var cst = (ScaleTransform)_centerGroup.RenderTransform;
-            _centerGroup.Opacity = 0;
-            var cgo = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(240 / sp)));
-            _centerGroup.BeginAnimation(OpacityProperty, cgo);
-            AnimateScale(cst, 1, (int)(420 / sp), 0.55);
+            if (_centerGroup != null)
+            {
+                var cst = (ScaleTransform)_centerGroup.RenderTransform;
+                _centerGroup.Opacity = 0;
+                var cgo = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(240 / sp)));
+                _centerGroup.BeginAnimation(OpacityProperty, cgo);
+                AnimateScale(cst, 1, (int)(420 / sp), 0.55);
+            }
 
             int step = style == "ripple" ? 90 : 40;
             for (int i = 0; i < _petals.Count; i++)
@@ -604,7 +619,9 @@ namespace Hinoki
 
         public void PlayOut(Action done)
         {
-            var fade = new DoubleAnimation(0, new Duration(TimeSpan.FromMilliseconds(170)));
+            var cfgApp = App.Config;
+            double sp = cfgApp != null ? cfgApp.AnimSpeed / 100.0 : 1.0;
+            var fade = new DoubleAnimation(0, new Duration(TimeSpan.FromMilliseconds(170 / sp)));
             fade.Completed += delegate { if (done != null) done(); };
             BeginAnimation(OpacityProperty, fade);
         }
