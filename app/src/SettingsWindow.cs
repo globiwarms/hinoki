@@ -494,14 +494,13 @@ namespace Hinoki
         FrameworkElement BuildPetalsPage()
         {
             var grid = new Grid();
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(196) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(240) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(230) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
+            // LEFT: petal list + preview + buttons
             var left = new Grid();
             left.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            left.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             left.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
             _petalList = new StackPanel();
@@ -512,6 +511,29 @@ namespace Hinoki
             listCard.Child = _petalList;
             Grid.SetRow(listCard, 0);
             left.Children.Add(listCard);
+
+            var previewWrap = new Border();
+            previewWrap.CornerRadius = new CornerRadius(14);
+            previewWrap.Background = Ui.Solid(Colors.White, 0.02);
+            previewWrap.Margin = new Thickness(0, 12, 0, 0);
+            previewWrap.VerticalAlignment = VerticalAlignment.Center;
+            var pvb = new Viewbox();
+            pvb.Stretch = Stretch.Uniform;
+            pvb.Margin = new Thickness(4);
+            pvb.MaxHeight = 280;
+            _preview = new FlowerMenu(240);
+            _preview.PetalActivated += delegate (int i)
+            {
+                _selPetal = i;
+                _preview.SetSelected(_selPetal);
+                RefreshPetalList();
+                FillEditor();
+            };
+            _preview.CenterActivated += delegate { _preview.PlayIn(); };
+            pvb.Child = _preview;
+            previewWrap.Child = pvb;
+            Grid.SetRow(previewWrap, 1);
+            left.Children.Add(previewWrap);
 
             var btnRow = new StackPanel();
             btnRow.Orientation = Orientation.Horizontal;
@@ -550,31 +572,10 @@ namespace Hinoki
             Grid.SetColumn(left, 0);
             grid.Children.Add(left);
 
-            var mid = new Grid();
-            var pvWrap = new Border();
-            pvWrap.CornerRadius = new CornerRadius(14);
-            pvWrap.Background = Ui.Solid(Colors.White, 0.02);
-            pvWrap.VerticalAlignment = VerticalAlignment.Center;
-            var pvb = new Viewbox();
-            pvb.Stretch = Stretch.Uniform;
-            pvb.Margin = new Thickness(4);
-            _preview = new FlowerMenu(240);
-            _preview.PetalActivated += delegate (int i)
-            {
-                _selPetal = i;
-                _preview.SetSelected(_selPetal);
-                RefreshPetalList();
-                FillEditor();
-            };
-            _preview.CenterActivated += delegate { _preview.PlayIn(); };
-            pvb.Child = _preview;
-            pvWrap.Child = pvb;
-            Grid.SetColumn(mid, 2);
-            grid.Children.Add(mid);
-
+            // RIGHT: editor
             _editor = new StackPanel();
             var editorScroll = Scroller(_editor);
-            Grid.SetColumn(editorScroll, 4);
+            Grid.SetColumn(editorScroll, 1);
             grid.Children.Add(editorScroll);
 
             RefreshPetalList();
