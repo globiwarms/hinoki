@@ -55,7 +55,7 @@ namespace Hinoki
         Dictionary<string, FrameworkElement> _pages = new Dictionary<string, FrameworkElement>();
         ContentControl _pageHost;
         GlassTextBox _iconSearch;
-        WrapPanel _iconPanel;
+        System.Windows.Controls.Primitives.UniformGrid _iconPanel;
         bool _expandedIcons;
         string _expandLabel = "";
         System.Windows.Threading.DispatcherTimer _rebuildDebounce;
@@ -231,7 +231,7 @@ namespace Hinoki
             bn.VerticalAlignment = VerticalAlignment.Center;
             bn.Margin = new Thickness(10, 0, 0, 0);
             bn.Children.Add(Glass.Label("Hinoki", 15.5, false, true));
-            bn.Children.Add(Glass.Label("v1.1", 10, true));
+            bn.Children.Add(Glass.Label("v1.2", 10, true));
             brand.Children.Add(bn);
             Grid.SetRow(brand, 0);
             rail.Children.Add(brand);
@@ -743,10 +743,11 @@ namespace Hinoki
             _iconSearch.Margin = new Thickness(0, 2, 0, 8);
             _editor.Children.Add(_iconSearch);
 
-            _iconPanel = new WrapPanel();
+            _iconPanel = new System.Windows.Controls.Primitives.UniformGrid();
+            _iconPanel.Columns = 8;
             _iconPanel.Margin = new Thickness(0, 2, 0, 0);
             var iconScroll = new ScrollViewer();
-            iconScroll.MaxHeight = 216;
+            iconScroll.MaxHeight = 224;
             iconScroll.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
             iconScroll.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
             iconScroll.Content = _iconPanel;
@@ -881,7 +882,6 @@ namespace Hinoki
                 colorRow.Children.Add(sw);
             }
             _editor.Children.Add(colorRow);
-            _editor.Children.Add(Note("Первый вариант — прозрачное стекло как у всех. Остальные — свой цвет лепестка."));
 
             _editor.Children.Add(Section("Действие"));
             var actionItems = new List<string>(Actions.Names);
@@ -958,8 +958,7 @@ namespace Hinoki
                         App.SaveConfig(); Pulse();
                     };
                     _editor.Children.Add(args);
-                    _editor.Children.Add(Note("Работают .exe, .lnk и steam:// ссылки — откроется как обычный ярлык."));
-                    break;
+                            break;
                 }
                 case "url":
                 {
@@ -972,8 +971,7 @@ namespace Hinoki
                         App.SaveConfig(); Pulse();
                     };
                     _editor.Children.Add(tb);
-                    _editor.Children.Add(Note("Откроется в браузере по умолчанию."));
-                    break;
+                            break;
                 }
                 case "hotkey":
                 {
@@ -986,8 +984,7 @@ namespace Hinoki
                         App.SaveConfig(); Pulse();
                     };
                     _editor.Children.Add(hk);
-                    _editor.Children.Add(Note("Hinoki нажмёт это сочетание в активном приложении."));
-                    break;
+                            break;
                 }
                 case "discord_mute":
                     _editor.Children.Add(Note("Поднимет Discord и отправит «" + HotkeyBox.PrettyCombo(App.Config.DiscordMuteKeys) + "». Сочетание — в разделе «Поведение»."));
@@ -996,28 +993,21 @@ namespace Hinoki
                     _editor.Children.Add(Note("Поднимет Discord и отправит «" + HotkeyBox.PrettyCombo(App.Config.DiscordDeafenKeys) + "». Сочетание — в разделе «Поведение»."));
                     break;
                 case "mic_toggle":
-                    _editor.Children.Add(Note("Общий микрофон системы. Нажмите на лепесток — состояние переключится, лепесток подсветится красным, пока микрофон выключен."));
-                    break;
+                            break;
                 case "volume_mute":
-                    _editor.Children.Add(Note("Общий звук системы. Лепесток подсвечивается красным, пока звук выключен."));
-                    break;
+                            break;
                 case "media":
-                    _editor.Children.Add(Note("Play / Pause для Spotify, YouTube Music и других плееров."));
-                    break;
+                            break;
                 case "screenshot_file":
-                    _editor.Children.Add(Note("Снимок всего экрана сохранится в «Изображения»."));
-                    break;
+                            break;
                 case "screenshot_buffer":
-                    _editor.Children.Add(Note("Откроет системные «Ножницы» (Win+Shift+S) — выделите область."));
-                    break;
+                            break;
                 case "shutdown_pc":
                 case "restart_pc":
                 case "sleep_pc":
-                    _editor.Children.Add(Note("Сработает сразу, без подтверждения."));
-                    break;
+                            break;
                 default:
-                    _editor.Children.Add(Note("Выберите действие — лепесток выполнит его одним нажатием."));
-                    break;
+                            break;
             }
         }
 
@@ -1090,6 +1080,19 @@ namespace Hinoki
                 App.SaveConfig(); Pulse();
             };
             stack.Children.Add(Setting("Размер меню", null, AttachSlider(sizeSlider, sizeVal)));
+            stack.Children.Add(Sep());
+
+            var cbVal = Glass.Label(cfgApp.CenterOpacity + "%", 13, true);
+            var cbSlider = new GlassSlider(30, 100, cfgApp.CenterOpacity);
+            cbSlider.Changed += delegate
+            {
+                App.Config.CenterOpacity = (int)Math.Round(cbSlider.Value);
+                cbVal.Text = App.Config.CenterOpacity + "%";
+                App.SaveConfig();
+                DebouncedRebuild();
+                Pulse();
+            };
+            stack.Children.Add(Setting("Размер шестерёнки", null, AttachSlider(cbSlider, cbVal)));
             stack.Children.Add(Sep());
 
             var entranceItems = new List<string> { "Пружина (живой)", "Плавно", "Эластик", "Отскок", "Волна", "Только fade", "Мгновенно" };
@@ -1340,19 +1343,17 @@ namespace Hinoki
             hkDeafen.Changed += delegate { App.Config.DiscordDeafenKeys = hkDeafen.Combo; App.SaveConfig(); Pulse(); };
             stack.Children.Add(Setting("Мут звука — Discord", "Должно совпадать с биндом в Discord", hkDeafen));
 
-            stack.Children.Add(Section("Система"));
-
             var tgAuto = new GlassToggle(cfgApp.Autostart);
             tgAuto.Changed += delegate { App.Config.Autostart = tgAuto.IsOn; App.ApplyAutostart(); App.SaveConfig(); Pulse(); };
             stack.Children.Add(Setting("Запускать вместе с Windows", "Hinoki будет ждать вас в трее", tgAuto));
 
             var rowBtns = new StackPanel();
             rowBtns.Orientation = Orientation.Horizontal;
-            rowBtns.Margin = new Thickness(0, 4, 0, 0);
-            var testBtn = new PillButton("Открыть меню (тест)", false);
+            rowBtns.Margin = new Thickness(2, 14, 0, 0);
+            var testBtn = new PillButton("Открыть меню", false);
             testBtn.Clicked += delegate { App.TestMenu(); };
             rowBtns.Children.Add(testBtn);
-            var restart = new PillButton("Перезапустить Hinoki", false);
+            var restart = new PillButton("Перезапуск", false);
             restart.Margin = new Thickness(8, 0, 0, 0);
             restart.Clicked += delegate { App.RestartApp(); };
             rowBtns.Children.Add(restart);
@@ -1380,7 +1381,7 @@ namespace Hinoki
             name.Margin = new Thickness(0, 14, 0, 0);
             stack.Children.Add(name);
 
-            var ver = Glass.Label("Версия 1.1 · Windows 10/11", 12, true);
+            var ver = Glass.Label("Версия 1.2 · Windows 10/11", 12, true);
             ver.HorizontalAlignment = HorizontalAlignment.Center;
             ver.Margin = new Thickness(0, 3, 0, 0);
             stack.Children.Add(ver);

@@ -81,6 +81,9 @@ namespace Hinoki
         public const int SW_RESTORE = 9;
         public const int SW_SHOW = 5;
 
+        [DllImport("gdi32.dll")]
+        public static extern bool DeleteObject(IntPtr hObject);
+
         [DllImport("user32.dll")]
         public static extern bool LockWorkStation();
 

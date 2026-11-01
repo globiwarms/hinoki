@@ -123,6 +123,8 @@ namespace Hinoki
 
             Box = new TextBox();
             Box.Text = text;
+            Box.Background = Brushes.Transparent;
+            Box.BorderThickness = new Thickness(0);
             Box.FontFamily = Ui.Text;
             Box.FontSize = 13.5;
             Box.Foreground = Ui.Solid(Ui.Ink, 0.97);
@@ -351,11 +353,12 @@ namespace Hinoki
             searchBox.FontSize = 13;
             searchBox.Foreground = Ui.Solid(Ui.Ink, 0.97);
             searchBox.CaretBrush = Ui.Solid(Ui.Accent, 1);
-            searchBox.Background = Ui.Solid(Colors.White, 0.06);
-            searchBox.BorderBrush = Ui.Solid(Colors.White, 0.10);
+            searchBox.Background = Ui.Solid(Colors.White, 0.05);
+            searchBox.BorderBrush = Ui.Solid(Colors.White, 0.08);
             searchBox.BorderThickness = new Thickness(1);
-            searchBox.Padding = new Thickness(9, 6, 9, 7);
+            searchBox.Padding = new Thickness(10, 7, 10, 8);
             searchBox.Margin = new Thickness(6, 6, 6, 4);
+            searchBox.HorizontalAlignment = HorizontalAlignment.Stretch;
 
             var list = new StackPanel();
             list.MinWidth = Math.Max(MinWidth, ActualWidth);
