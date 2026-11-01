@@ -1,4 +1,4 @@
-// Hinoki — liquid glass UI controls, hand-built to match the Apple look
+// Hinoki — Apple-style glass UI controls
 using System;
 using System.Collections.Generic;
 using System.Windows;
@@ -12,24 +12,8 @@ using System.Windows.Shapes;
 
 namespace Hinoki
 {
-    // ---------- primitives ----------
-
     public static class Glass
     {
-        public static Border Card(double corner, double pad, double topA, double bottomA)
-        {
-            var b = new Border();
-            b.CornerRadius = new CornerRadius(corner);
-            b.Background = Ui.GlassFill(topA, bottomA);
-            b.BorderBrush = Ui.Solid(Colors.White, 0.14);
-            b.BorderThickness = new Thickness(1);
-            b.Padding = new Thickness(pad);
-            var e = new DropShadowEffect();
-            e.Color = Colors.Black; e.BlurRadius = 30; e.ShadowDepth = 6; e.Direction = 270; e.Opacity = 0.30;
-            b.Effect = e;
-            return b;
-        }
-
         public static TextBlock Label(string text, double size, bool dim = false, bool semibold = false)
         {
             var t = new TextBlock();
@@ -42,18 +26,80 @@ namespace Hinoki
         }
     }
 
-    // ---------- toggle ----------    // ---------- toggle ----------
+    public static class Rows
+    {
+        public static FrameworkElement Setting(string title, string sub, FrameworkElement right)
+        {
+            var grid = new Grid();
+            grid.Margin = new Thickness(2, 10, 0, 10);
+            var sp = new StackPanel();
+            sp.VerticalAlignment = VerticalAlignment.Center;
+            sp.Children.Add(Glass.Label(title, 14, false, true));
+            if (!string.IsNullOrEmpty(sub))
+            {
+                var s = Glass.Label(sub, 11.5, true);
+                s.Margin = new Thickness(0, 2, 14, 0);
+                s.TextWrapping = TextWrapping.Wrap;
+                sp.Children.Add(s);
+            }
+            grid.Children.Add(sp);
+            if (right != null)
+            {
+                right.VerticalAlignment = VerticalAlignment.Center;
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                Grid.SetColumn(right, 1);
+                grid.Children.Add(right);
+            }
+            return grid;
+        }
 
+        public static FrameworkElement Section(string text)
+        {
+            var t = new TextBlock();
+            t.Text = text.ToUpperInvariant();
+            t.FontFamily = Ui.Text;
+            t.FontSize = 11;
+            t.FontWeight = FontWeights.SemiBold;
+            t.Foreground = Ui.Solid(Ui.InkDim, 0.85);
+            t.Margin = new Thickness(2, 20, 0, 10);
+            return t;
+        }
+
+        public static FrameworkElement Sep()
+        {
+            var line = new Border();
+            line.Height = 1;
+            line.Background = Ui.Solid(Colors.White, 0.05);
+            line.Margin = new Thickness(0, 12, 0, 4);
+            return line;
+        }
+
+        public static FrameworkElement AttachSlider(GlassSlider slider, TextBlock value)
+        {
+            var host = new Grid();
+            host.MinWidth = 220;
+            host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(52) });
+            slider.MinWidth = 150;
+            slider.Margin = new Thickness(0, 0, 12, 0);
+            Grid.SetColumn(slider, 0);
+            value.Width = 52;
+            value.HorizontalAlignment = HorizontalAlignment.Right;
+            value.TextAlignment = TextAlignment.Right;
+            Grid.SetColumn(value, 1);
+            host.Children.Add(slider);
+            host.Children.Add(value);
+            return host;
+        }
+    }
+
+    // ---------- toggle ----------
     public class GlassToggle : Border
     {
         bool _on;
-        public bool IsOn
-        {
-            get { return _on; }
-            set { Set(value, false); }
-        }
+        public bool IsOn { get { return _on; } set { Set(value, false); } }
         public event Action Changed;
-
         Border _accentLayer;
         Ellipse _knob;
         TranslateTransform _knobX;
@@ -61,31 +107,28 @@ namespace Hinoki
         public GlassToggle(bool isOn)
         {
             _on = isOn;
-            Width = 50; Height = 30;
-            CornerRadius = new CornerRadius(15);
-            Background = Ui.Solid(Colors.White, 0.10);
-            BorderBrush = Ui.Solid(Colors.White, 0.18);
-            BorderThickness = new Thickness(1);
+            Width = 44; Height = 26;
+            CornerRadius = new CornerRadius(13);
+            Background = Ui.Solid(Colors.White, isOn ? 0.0 : 0.08);
+            BorderThickness = new Thickness(0);
             Cursor = Cursors.Hand;
 
             var grid = new Grid();
             _accentLayer = new Border();
-            _accentLayer.CornerRadius = new CornerRadius(15);
+            _accentLayer.CornerRadius = new CornerRadius(13);
             _accentLayer.Background = Ui.Solid(Ui.Accent, 1);
             _accentLayer.Opacity = isOn ? 1 : 0;
             grid.Children.Add(_accentLayer);
 
             _knob = new Ellipse();
-            _knob.Width = 24; _knob.Height = 24;
-            _knob.Fill = Ui.Solid(Colors.White, 0.96);
-            var e = new DropShadowEffect();
-            e.Color = Colors.Black; e.BlurRadius = 8; e.ShadowDepth = 1; e.Opacity = 0.4;
-            _knob.Effect = e;
+            _knob.Width = 22; _knob.Height = 22;
+            _knob.Fill = Ui.Solid(Colors.White, 0.95);
+            _knob.Effect = new DropShadowEffect { Color = Colors.Black, BlurRadius = 6, ShadowDepth = 1, Opacity = 0.3 };
             _knob.HorizontalAlignment = HorizontalAlignment.Left;
             _knob.VerticalAlignment = VerticalAlignment.Center;
-            _knob.Margin = new Thickness(3, 0, 0, 0);
+            _knob.Margin = new Thickness(2, 0, 0, 0);
             _knob.RenderTransformOrigin = new Point(0.5, 0.5);
-            _knobX = new TranslateTransform(isOn ? 20 : 0, 0);
+            _knobX = new TranslateTransform(isOn ? 18 : 0, 0);
             _knob.RenderTransform = _knobX;
             grid.Children.Add(_knob);
 
@@ -96,18 +139,17 @@ namespace Hinoki
         void Set(bool on, bool fireEvent)
         {
             _on = on;
-            var bg = new DoubleAnimation(on ? 1 : 0, new Duration(TimeSpan.FromMilliseconds(180)));
+            var bg = new DoubleAnimation(on ? 1 : 0, new Duration(TimeSpan.FromMilliseconds(200)));
             bg.EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut };
             _accentLayer.BeginAnimation(OpacityProperty, bg);
-            var kx = new DoubleAnimation(on ? 20 : 0, new Duration(TimeSpan.FromMilliseconds(200)));
-            kx.EasingFunction = new BackEase { Amplitude = 0.6, EasingMode = EasingMode.EaseOut };
+            var kx = new DoubleAnimation(on ? 18 : 0, new Duration(TimeSpan.FromMilliseconds(220)));
+            kx.EasingFunction = new BackEase { Amplitude = 0.5, EasingMode = EasingMode.EaseOut };
             _knobX.BeginAnimation(TranslateTransform.XProperty, kx);
             if (fireEvent && Changed != null) Changed();
         }
     }
 
     // ---------- text box ----------
-
     public class GlassTextBox : Border
     {
         public TextBox Box;
@@ -115,30 +157,28 @@ namespace Hinoki
         public GlassTextBox(string text, string placeholder, double minWidth)
         {
             MinWidth = minWidth;
-            CornerRadius = new CornerRadius(12);
-            Background = Ui.Solid(Colors.White, 0.06);
-            BorderBrush = Ui.Solid(Colors.White, 0.14);
+            CornerRadius = new CornerRadius(10);
+            Background = Ui.Solid(Colors.White, 0.05);
+            BorderBrush = Ui.Solid(Colors.White, 0.10);
             BorderThickness = new Thickness(1);
             SnapsToDevicePixels = true;
 
             Box = new TextBox();
             Box.Text = text;
-            Box.Background = Brushes.Transparent;
-            Box.BorderThickness = new Thickness(0);
             Box.FontFamily = Ui.Text;
             Box.FontSize = 13.5;
             Box.Foreground = Ui.Solid(Ui.Ink, 0.97);
             Box.CaretBrush = Ui.Solid(Ui.Accent, 1);
             Box.Background = Brushes.Transparent;
             Box.BorderThickness = new Thickness(0);
-            Box.Padding = new Thickness(11, 8, 11, 9);
-            Box.MaxLength = 200;
+            Box.Padding = new Thickness(10, 7, 10, 8);
+            Box.MaxLength = 300;
             if (placeholder != null)
             {
                 Box.Tag = placeholder;
                 if (string.IsNullOrEmpty(text))
                 {
-                    Box.Foreground = Ui.Solid(Ui.InkDim, 0.7);
+                    Box.Foreground = Ui.Solid(Ui.InkDim, 0.6);
                     Box.Text = placeholder;
                 }
                 Box.GotKeyboardFocus += delegate
@@ -147,13 +187,13 @@ namespace Hinoki
                 };
                 Box.LostKeyboardFocus += delegate
                 {
-                    if (Box.Text.Length == 0) { Box.Foreground = Ui.Solid(Ui.InkDim, 0.7); Box.Text = (string)Box.Tag; }
+                    if (Box.Text.Length == 0) { Box.Foreground = Ui.Solid(Ui.InkDim, 0.6); Box.Text = (string)Box.Tag; }
                 };
             }
             Child = Box;
 
-            GotKeyboardFocus += delegate { BorderBrush = Ui.Solid(Ui.Accent, 0.85); Background = Ui.Solid(Colors.White, 0.09); };
-            LostKeyboardFocus += delegate { BorderBrush = Ui.Solid(Colors.White, 0.14); Background = Ui.Solid(Colors.White, 0.06); };
+            GotKeyboardFocus += delegate { BorderBrush = Ui.Solid(Ui.Accent, 0.7); Background = Ui.Solid(Colors.White, 0.08); };
+            LostKeyboardFocus += delegate { BorderBrush = Ui.Solid(Colors.White, 0.10); Background = Ui.Solid(Colors.White, 0.05); };
         }
 
         public string Value
@@ -167,7 +207,7 @@ namespace Hinoki
             {
                 if (Box.Tag != null)
                 {
-                    if (string.IsNullOrEmpty(value)) { Box.Foreground = Ui.Solid(Ui.InkDim, 0.7); Box.Text = (string)Box.Tag; return; }
+                    if (string.IsNullOrEmpty(value)) { Box.Foreground = Ui.Solid(Ui.InkDim, 0.6); Box.Text = (string)Box.Tag; return; }
                     Box.Foreground = Ui.Solid(Ui.Ink, 0.97);
                 }
                 Box.Text = value;
@@ -176,7 +216,6 @@ namespace Hinoki
     }
 
     // ---------- hotkey capture ----------
-
     public class HotkeyBox : Border
     {
         string _combo;
@@ -184,19 +223,15 @@ namespace Hinoki
         public event Action Changed;
         TextBlock _display;
 
-        public string Combo
-        {
-            get { return _combo; }
-            set { _combo = value; Render(); }
-        }
+        public string Combo { get { return _combo; } set { _combo = value; Render(); } }
 
         public HotkeyBox(string combo)
         {
             _combo = combo;
             MinWidth = 190;
-            CornerRadius = new CornerRadius(12);
-            Background = Ui.Solid(Colors.White, 0.06);
-            BorderBrush = Ui.Solid(Colors.White, 0.14);
+            CornerRadius = new CornerRadius(10);
+            Background = Ui.Solid(Colors.White, 0.05);
+            BorderBrush = Ui.Solid(Colors.White, 0.10);
             BorderThickness = new Thickness(1);
             Cursor = Cursors.Hand;
             Focusable = true;
@@ -205,15 +240,11 @@ namespace Hinoki
             _display.FontFamily = Ui.Text;
             _display.FontSize = 13.5;
             _display.Foreground = Ui.Solid(Ui.Ink, 0.97);
-            _display.Margin = new Thickness(11, 8, 11, 9);
+            _display.Margin = new Thickness(10, 7, 10, 8);
             Child = _display;
             Render();
 
-            MouseLeftButtonDown += delegate
-            {
-                Focus();
-                StartCapture();
-            };
+            MouseLeftButtonDown += delegate { Focus(); StartCapture(); };
             LostKeyboardFocus += delegate { StopCapture(); };
             PreviewKeyDown += OnKey;
         }
@@ -222,16 +253,16 @@ namespace Hinoki
         {
             _capturing = true;
             MouseHook.Suppressed = true;
-            BorderBrush = Ui.Solid(Ui.Accent, 0.9);
+            BorderBrush = Ui.Solid(Ui.Accent, 0.7);
             _display.Foreground = Ui.Solid(Ui.Accent, 1);
-            _display.Text = "Нажмите сочетание… (Esc — отмена)";
+            _display.Text = "Нажмите сочетание…";
         }
 
         void StopCapture()
         {
             _capturing = false;
             MouseHook.Suppressed = false;
-            BorderBrush = Ui.Solid(Colors.White, 0.14);
+            BorderBrush = Ui.Solid(Colors.White, 0.10);
             _display.Foreground = Ui.Solid(Ui.Ink, 0.97);
             Render();
         }
@@ -251,11 +282,9 @@ namespace Hinoki
             if ((mods & ModifierKeys.Shift) != 0) parts.Add("Shift");
             if ((mods & ModifierKeys.Alt) != 0) parts.Add("Alt");
             if ((mods & ModifierKeys.Windows) != 0) parts.Add("Win");
-
             string name = new KeyConverter().ConvertToString(k);
             if (name != null && name.Length == 2 && name[0] == 'D' && char.IsDigit(name[1])) name = name.Substring(1);
             parts.Add(name);
-
             _combo = string.Join("+", parts.ToArray());
             StopCapture();
             if (Changed != null) Changed();
@@ -276,17 +305,14 @@ namespace Hinoki
     }
 
     // ---------- dropdown ----------
-
     public class GlassDropDown : Border
     {
         List<string> _items;
         int _index;
         public event Action Changed;
+        public bool KeepOpenOnSelect { get; set; }
         TextBlock _label;
         Popup _popup;
-
-        /// <summary>When true the popup stays open after picking — for browsing actions.</summary>
-        public bool KeepOpenOnSelect { get; set; }
 
         public int SelectedIndex
         {
@@ -298,39 +324,35 @@ namespace Hinoki
         {
             _items = items;
             _index = Math.Max(0, Math.Min(items.Count - 1, selected));
-            MinWidth = 250;
-            CornerRadius = new CornerRadius(12);
-            Background = Ui.Solid(Colors.White, 0.06);
-            BorderBrush = Ui.Solid(Colors.White, 0.14);
+            MinWidth = 200;
+            CornerRadius = new CornerRadius(10);
+            Background = Ui.Solid(Colors.White, 0.05);
+            BorderBrush = Ui.Solid(Colors.White, 0.10);
             BorderThickness = new Thickness(1);
             Cursor = Cursors.Hand;
 
             var grid = new Grid();
-            grid.Margin = new Thickness(1, 0, 1, 0);
             _label = new TextBlock();
             _label.FontFamily = Ui.Text;
             _label.FontSize = 13.5;
             _label.Foreground = Ui.Solid(Ui.Ink, 0.95);
             _label.VerticalAlignment = VerticalAlignment.Center;
-            _label.Margin = new Thickness(11, 9, 30, 10);
+            _label.Margin = new Thickness(10, 8, 26, 9);
             _label.TextTrimming = TextTrimming.CharacterEllipsis;
             grid.Children.Add(_label);
-
             var chev = new TextBlock();
             chev.Text = ((char)0xE70D).ToString();
             chev.FontFamily = Ui.Icons;
-            chev.FontSize = 11;
+            chev.FontSize = 9;
             chev.Foreground = Ui.Solid(Ui.InkDim, 1);
             chev.HorizontalAlignment = HorizontalAlignment.Right;
             chev.VerticalAlignment = VerticalAlignment.Center;
-            chev.Margin = new Thickness(0, 0, 13, 0);
+            chev.Margin = new Thickness(0, 0, 10, 0);
             grid.Children.Add(chev);
-
             Child = grid;
             Render();
 
-            // open on UP: a Down-opened popup gets instantly dismissed by the same click's capture logic
-            PreviewMouseLeftButtonUp += delegate { OverlayWindow.Log("DROPDOWN open requested"); OpenPopup(); };
+            PreviewMouseLeftButtonUp += delegate { OpenPopup(); };
         }
 
         void Render() { _label.Text = _items[_index]; }
@@ -346,24 +368,20 @@ namespace Hinoki
             popup.PopupAnimation = PopupAnimation.Fade;
 
             var root = new StackPanel();
-
-            // search box
             var searchBox = new TextBox();
             searchBox.FontFamily = Ui.Text;
             searchBox.FontSize = 13;
-            searchBox.Foreground = Ui.Solid(Ui.Ink, 0.97);
+            searchBox.Foreground = Ui.Solid(Ui.Ink, 0.95);
             searchBox.CaretBrush = Ui.Solid(Ui.Accent, 1);
-            searchBox.Background = Ui.Solid(Colors.White, 0.05);
-            searchBox.BorderBrush = Ui.Solid(Colors.White, 0.08);
+            searchBox.Background = Ui.Solid(Colors.White, 0.04);
+            searchBox.BorderBrush = Ui.Solid(Colors.White, 0.07);
             searchBox.BorderThickness = new Thickness(1);
-            searchBox.Padding = new Thickness(10, 7, 10, 8);
-            searchBox.Margin = new Thickness(6, 6, 6, 4);
+            searchBox.Padding = new Thickness(8, 6, 8, 7);
+            searchBox.Margin = new Thickness(5, 5, 5, 3);
             searchBox.HorizontalAlignment = HorizontalAlignment.Stretch;
 
             var list = new StackPanel();
             list.MinWidth = Math.Max(MinWidth, ActualWidth);
-
-            Action refreshSizes = delegate { list.MinWidth = Math.Max(MinWidth, ActualWidth); };
 
             Action<string> rebuild = delegate(string query)
             {
@@ -374,17 +392,17 @@ namespace Hinoki
                     if (q.Length > 0 && !_items[i].ToLowerInvariant().Contains(q)) continue;
                     int idx = i;
                     var row = new Border();
-                    row.Padding = new Thickness(10, 7, 10, 8);
-                    row.CornerRadius = new CornerRadius(9);
-                    row.Margin = new Thickness(5, 2, 5, 2);
+                    row.Padding = new Thickness(10, 6, 10, 7);
+                    row.CornerRadius = new CornerRadius(8);
+                    row.Margin = new Thickness(4, 1, 4, 1);
                     row.Cursor = Cursors.Hand;
                     var wrap = new StackPanel();
                     wrap.Orientation = Orientation.Horizontal;
                     var mark = new TextBlock();
                     mark.Text = idx == _index ? ((char)0xE73E).ToString() : " ";
                     mark.FontFamily = Ui.Icons;
-                    mark.FontSize = 11;
-                    mark.Width = 18;
+                    mark.FontSize = 10;
+                    mark.Width = 16;
                     mark.Foreground = Ui.Solid(Ui.Accent, 1);
                     wrap.Children.Add(mark);
                     var t = new TextBlock();
@@ -394,9 +412,9 @@ namespace Hinoki
                     t.Foreground = idx == _index ? Ui.Solid(Ui.Accent, 1) : Ui.Solid(Ui.Ink, 0.9);
                     wrap.Children.Add(t);
                     row.Child = wrap;
-                    row.Background = idx == _index ? Ui.Solid(Ui.Accent, 0.12) : Brushes.Transparent;
-                    row.MouseEnter += delegate { row.Background = Ui.Solid(Colors.White, 0.08); };
-                    row.MouseLeave += delegate { row.Background = idx == _index ? Ui.Solid(Ui.Accent, 0.12) : Brushes.Transparent; };
+                    row.Background = idx == _index ? Ui.Solid(Ui.Accent, 0.10) : Brushes.Transparent;
+                    row.MouseEnter += delegate { row.Background = Ui.Solid(Colors.White, 0.06); };
+                    row.MouseLeave += delegate { row.Background = idx == _index ? Ui.Solid(Ui.Accent, 0.10) : Brushes.Transparent; };
                     row.MouseLeftButtonDown += delegate
                     {
                         _index = idx;
@@ -405,13 +423,13 @@ namespace Hinoki
                         {
                             var o = list.Children[j] as Border;
                             if (o == null) continue;
-                            var oText = (StackPanel)o.Child;
-                            var oMark = (TextBlock)oText.Children[0];
-                            var oT = (TextBlock)oText.Children[1];
+                            var oWrap = (StackPanel)o.Child;
+                            var oMk = (TextBlock)oWrap.Children[0];
+                            var oT = (TextBlock)oWrap.Children[1];
                             bool sel = (int)o.Tag == _index;
-                            oMark.Text = sel ? ((char)0xE73E).ToString() : " ";
+                            oMk.Text = sel ? ((char)0xE73E).ToString() : " ";
                             oT.Foreground = sel ? Ui.Solid(Ui.Accent, 1) : Ui.Solid(Ui.Ink, 0.9);
-                            o.Background = sel ? Ui.Solid(Ui.Accent, 0.12) : Brushes.Transparent;
+                            o.Background = sel ? Ui.Solid(Ui.Accent, 0.10) : Brushes.Transparent;
                         }
                         if (!KeepOpenOnSelect) popup.IsOpen = false;
                         if (Changed != null) Changed();
@@ -419,37 +437,25 @@ namespace Hinoki
                     row.Tag = idx;
                     list.Children.Add(row);
                 }
-                if (list.Children.Count == 0)
-                {
-                    var empty = new TextBlock();
-                    empty.Text = "Ничего не найдено";
-                    empty.FontFamily = Ui.Text;
-                    empty.FontSize = 12.5;
-                    empty.Foreground = Ui.Solid(Ui.InkDim, 1);
-                    empty.Margin = new Thickness(12, 10, 12, 12);
-                    list.Children.Add(empty);
-                }
             };
-
             rebuild("");
-            searchBox.TextChanged += delegate { rebuild(searchBox.Text); };
 
             var sv = new ScrollViewer();
-            sv.MaxHeight = 330;
+            sv.MaxHeight = 300;
             sv.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
             sv.Content = list;
-
             root.Children.Add(searchBox);
             root.Children.Add(sv);
+            searchBox.TextChanged += delegate { rebuild(searchBox.Text); };
 
             var host = new Border();
-            host.CornerRadius = new CornerRadius(13);
+            host.CornerRadius = new CornerRadius(12);
             host.Background = Ui.Solid(Color.FromRgb(0x1A, 0x1C, 0x22), 0.99);
-            host.BorderBrush = Ui.Solid(Colors.White, 0.14);
+            host.BorderBrush = Ui.Solid(Colors.White, 0.10);
             host.BorderThickness = new Thickness(1);
-            host.Padding = new Thickness(3);
+            host.Padding = new Thickness(2);
             host.Child = root;
-            host.Effect = new DropShadowEffect { Color = Colors.Black, BlurRadius = 34, ShadowDepth = 8, Opacity = 0.5 };
+            host.Effect = new DropShadowEffect { Color = Colors.Black, BlurRadius = 28, ShadowDepth = 6, Opacity = 0.4 };
             popup.Child = host;
             _popup = popup;
             popup.Closed += delegate { _popup = null; };
@@ -459,7 +465,6 @@ namespace Hinoki
     }
 
     // ---------- slider ----------
-
     public class GlassSlider : Canvas
     {
         double _min, _max, _value;
@@ -468,46 +473,37 @@ namespace Hinoki
         Ellipse _knob;
         bool _dragging;
 
-        public double Value
-        {
-            get { return _value; }
-            set { Set(Math.Max(_min, Math.Min(_max, value)), false); }
-        }
+        public double Value { get { return _value; } set { Set(Math.Max(_min, Math.Min(_max, value)), false); } }
 
         public GlassSlider(double min, double max, double value)
         {
             _min = min; _max = max; _value = value;
-            Height = 30;
+            Height = 26;
             Cursor = Cursors.Hand;
 
             _track = new Border();
-            _track.Height = 5;
-            _track.CornerRadius = new CornerRadius(3);
-            _track.Background = Ui.Solid(Colors.White, 0.12);
+            _track.Height = 4;
+            _track.CornerRadius = new CornerRadius(2);
+            _track.Background = Ui.Solid(Colors.White, 0.08);
             _track.VerticalAlignment = VerticalAlignment.Center;
             Children.Add(_track);
 
             _fill = new Border();
-            _fill.Height = 5;
-            _fill.CornerRadius = new CornerRadius(3);
-            _fill.Background = Ui.Solid(Ui.Accent, 1);
+            _fill.Height = 4;
+            _fill.CornerRadius = new CornerRadius(2);
+            _fill.Background = Ui.Solid(Ui.Accent, 0.7);
             _fill.VerticalAlignment = VerticalAlignment.Center;
             Children.Add(_fill);
 
             _knob = new Ellipse();
-            _knob.Width = 17; _knob.Height = 17;
-            _knob.Fill = Ui.Solid(Colors.White, 0.98);
-            _knob.Effect = new DropShadowEffect { Color = Colors.Black, BlurRadius = 8, ShadowDepth = 1, Opacity = 0.45 };
+            _knob.Width = 16; _knob.Height = 16;
+            _knob.Fill = Ui.Solid(Colors.White, 0.95);
+            _knob.Effect = new DropShadowEffect { Color = Colors.Black, BlurRadius = 6, ShadowDepth = 1, Opacity = 0.35 };
             _knob.VerticalAlignment = VerticalAlignment.Center;
             Children.Add(_knob);
 
             SizeChanged += delegate { Layout(); };
-            MouseLeftButtonDown += delegate
-            {
-                _dragging = true;
-                CaptureMouse();
-                Track(Mouse.GetPosition(this).X);
-            };
+            MouseLeftButtonDown += delegate { _dragging = true; CaptureMouse(); Track(Mouse.GetPosition(this).X); };
             MouseMove += delegate { if (_dragging) Track(Mouse.GetPosition(this).X); };
             MouseLeftButtonUp += delegate { _dragging = false; ReleaseMouseCapture(); };
         }
@@ -530,25 +526,24 @@ namespace Hinoki
         {
             double w = Math.Max(1, ActualWidth);
             double t = (_value - _min) / (_max - _min);
-            SetTop(_track, 13); SetTop(_fill, 13);
+            SetTop(_track, 11); SetTop(_fill, 11);
             _track.Width = w;
-            _fill.Width = Math.Max(5, w * t);
-            SetLeft(_knob, w * t - 8.5);
-            SetTop(_knob, 7);
+            _fill.Width = Math.Max(4, w * t);
+            SetLeft(_knob, w * t - 8);
+            SetTop(_knob, 5);
         }
     }
 
     // ---------- pill button ----------
-
     public class PillButton : Border
     {
         public event Action Clicked;
 
-        public PillButton(string text, bool accent, double padX = 16)
+        public PillButton(string text, bool accent)
         {
-            CornerRadius = new CornerRadius(17);
+            CornerRadius = new CornerRadius(10);
             Cursor = Cursors.Hand;
-            Padding = new Thickness(padX, 7, padX, 8);
+            Padding = new Thickness(14, 7, 14, 8);
             var t = new TextBlock();
             t.Text = text;
             t.FontFamily = Ui.Text;
@@ -559,26 +554,25 @@ namespace Hinoki
 
             if (accent)
             {
-                Background = Ui.Solid(Ui.Accent, 1);
+                Background = Ui.Solid(Ui.Accent, 0.9);
                 t.Foreground = Ui.Solid(Color.FromRgb(0x1B, 0x22, 0x16), 1);
             }
             else
             {
-                Background = Ui.GlassFill(0.12, 0.06);
-                BorderBrush = Ui.Solid(Colors.White, 0.16);
+                Background = Ui.Solid(Colors.White, 0.06);
+                BorderBrush = Ui.Solid(Colors.White, 0.10);
                 BorderThickness = new Thickness(1);
-                t.Foreground = Ui.Solid(Ui.Ink, 0.95);
+                t.Foreground = Ui.Solid(Ui.Ink, 0.9);
             }
 
-            MouseEnter += delegate { Opacity = 0.92; Scale(1.03); };
-            MouseLeave += delegate { Opacity = 1; Scale(1); };
-            MouseLeftButtonDown += delegate { Scale(0.95); };
+            MouseEnter += delegate { Opacity = 0.85; };
+            MouseLeave += delegate { Opacity = 1; };
+            MouseLeftButtonDown += delegate { Scale(0.96); };
             MouseLeftButtonUp += delegate
             {
                 Scale(1);
                 var h = Clicked; if (h != null) h();
             };
-            MouseLeave += delegate { Opacity = 1; Scale(1); };
         }
 
         void Scale(double s)
@@ -590,91 +584,14 @@ namespace Hinoki
                 RenderTransformOrigin = new Point(0.5, 0.5);
                 RenderTransform = st;
             }
-            var a = new DoubleAnimation(s, new Duration(TimeSpan.FromMilliseconds(110)));
-            a.EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut };
+            var a = new DoubleAnimation(s, new Duration(TimeSpan.FromMilliseconds(140)));
+            a.EasingFunction = new BackEase { Amplitude = 0.2, EasingMode = EasingMode.EaseOut };
             st.BeginAnimation(ScaleTransform.ScaleXProperty, a);
             st.BeginAnimation(ScaleTransform.ScaleYProperty, a);
         }
     }
 
-    // ---------- segmented tabs ----------
-
-    public class Segmented : Border
-    {
-        string[] _labels;
-        int _index;
-        public event Action<int> Changed;
-        Border _knob;
-        TextBlock[] _texts;
-        double _segW = 118;
-
-        public int Selected
-        {
-            get { return _index; }
-            set { Select(value, false); }
-        }
-
-        public Segmented(string[] labels, int selected)
-        {
-            _labels = labels;
-            _index = selected;
-            CornerRadius = new CornerRadius(16);
-            Background = Ui.Solid(Colors.White, 0.07);
-            BorderBrush = Ui.Solid(Colors.White, 0.12);
-            BorderThickness = new Thickness(1);
-            Padding = new Thickness(3);
-
-            var grid = new Grid();
-            _knob = new Border();
-            _knob.CornerRadius = new CornerRadius(13);
-            _knob.Background = Ui.Solid(Colors.White, 0.15);
-            _knob.BorderBrush = Ui.Solid(Colors.White, 0.10);
-            _knob.BorderThickness = new Thickness(1);
-            _knob.Width = _segW;
-            _knob.HorizontalAlignment = HorizontalAlignment.Left;
-            _knob.Margin = new Thickness(0, 0, 0, 0);
-            _knob.RenderTransform = new TranslateTransform(selected * _segW, 0);
-            grid.Children.Add(_knob);
-
-            var panel = new StackPanel();
-            panel.Orientation = Orientation.Horizontal;
-            _texts = new TextBlock[labels.Length];
-            for (int i = 0; i < labels.Length; i++)
-            {
-                int idx = i;
-                var t = new TextBlock();
-                t.Text = labels[i];
-                t.FontFamily = Ui.Text;
-                t.FontSize = 12.5;
-                t.FontWeight = FontWeights.Medium;
-                t.TextAlignment = TextAlignment.Center;
-                t.Width = _segW;
-                t.Padding = new Thickness(0, 6, 0, 7);
-                t.Cursor = Cursors.Hand;
-                t.MouseLeftButtonDown += delegate { Select(idx, true); };
-                panel.Children.Add(t);
-                _texts[i] = t;
-            }
-            grid.Children.Add(panel);
-            Child = grid;
-            Select(selected, false);
-        }
-
-        void Select(int i, bool fireEvent)
-        {
-            _index = Math.Max(0, Math.Min(_labels.Length - 1, i));
-            var tf = (TranslateTransform)_knob.RenderTransform;
-            var a = new DoubleAnimation(_index * _segW, new Duration(TimeSpan.FromMilliseconds(220)));
-            a.EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut };
-            tf.BeginAnimation(TranslateTransform.XProperty, a);
-            for (int j = 0; j < _texts.Length; j++)
-                _texts[j].Foreground = j == _index ? Ui.Solid(Ui.Ink, 1) : Ui.Solid(Ui.InkDim, 1);
-            if (fireEvent && Changed != null) Changed(_index);
-        }
-    }
-
-    // ---------- icon picker tile ----------
-
+    // ---------- icon tile ----------
     public class IconTile : Border
     {
         bool _selected;
@@ -686,16 +603,13 @@ namespace Hinoki
         public IconTile(string glyphHex)
         {
             Glyph = glyphHex;
-            Width = 46; Height = 42;
-            CornerRadius = new CornerRadius(12);
-            Background = Ui.Solid(Colors.White, 0.05);
+            Width = 44; Height = 40;
+            CornerRadius = new CornerRadius(10);
+            Background = Ui.Solid(Colors.White, 0.04);
             BorderThickness = new Thickness(0);
             Cursor = Cursors.Hand;
 
-            var iconHost = LucideHost.Build(glyphHex, 20, false);
-            var fe = iconHost as System.Windows.FrameworkElement;
-            if (fe != null) { fe.HorizontalAlignment = HorizontalAlignment.Center; fe.VerticalAlignment = VerticalAlignment.Center; }
-            _icon = iconHost;
+            _icon = LucideHost.Build(glyphHex, 18, false);
             Child = _icon;
 
             MouseLeftButtonDown += delegate
@@ -710,51 +624,9 @@ namespace Hinoki
         {
             _selected = on;
             BorderThickness = new Thickness(0);
-            Background = on ? Ui.Solid(Ui.Accent, 0.20) : Ui.Solid(Colors.White, 0.05);
-        }
-    }
-
-    // ---------- settings row ----------
-
-    public static class Rows
-    {
-        public static FrameworkElement Row(string title, string sub, FrameworkElement right, bool divider = true)
-        {
-            var grid = new Grid();
-            grid.Margin = new Thickness(0, 10, 0, 10);
-            var sp = new StackPanel();
-            sp.VerticalAlignment = VerticalAlignment.Center;
-            sp.Children.Add(Glass.Label(title, 13.5, false, true));
-            if (!string.IsNullOrEmpty(sub))
-            {
-                var s = Glass.Label(sub, 11.5, true);
-                s.Margin = new Thickness(0, 2, 12, 0);
-                s.TextWrapping = TextWrapping.Wrap;
-                sp.Children.Add(s);
-            }
-            grid.Children.Add(sp);
-            if (right != null)
-            {
-                right.VerticalAlignment = VerticalAlignment.Center;
-                var col = new ColumnDefinition();
-                col.Width = GridLength.Auto;
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                grid.ColumnDefinitions.Add(col);
-                Grid.SetColumn(right, 1);
-                grid.Children.Add(right);
-            }
-            if (divider)
-            {
-                var line = new Border();
-                line.Height = 1;
-                line.Background = Ui.Solid(Colors.White, 0.07);
-                line.Margin = new Thickness(0, 10, 0, -11);
-                var outer = new StackPanel();
-                outer.Children.Add(grid);
-                outer.Children.Add(line);
-                return outer;
-            }
-            return grid;
+            Background = on ? Ui.Solid(Ui.Accent, 0.16) : Ui.Solid(Colors.White, 0.04);
+            var pt = _icon as System.Windows.Shapes.Path;
+            if (pt != null) pt.Stroke = on ? Ui.Solid(Ui.Accent, 1) : Ui.Solid(Colors.White, 0.95);
         }
     }
 }
