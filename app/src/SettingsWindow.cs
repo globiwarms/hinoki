@@ -88,12 +88,12 @@ namespace Hinoki
             var chromeFill = new LinearGradientBrush();
             chromeFill.StartPoint = new Point(0, 0);
             chromeFill.EndPoint = new Point(0.7, 1);
-            chromeFill.GradientStops.Add(new GradientStop(Color.FromArgb(0xC8, 0x1C, 0x1E, 0x24), 0));
-            chromeFill.GradientStops.Add(new GradientStop(Color.FromArgb(0xC0, 0x14, 0x15, 0x1B), 0.55));
-            chromeFill.GradientStops.Add(new GradientStop(Color.FromArgb(0xB8, 0x10, 0x11, 0x16), 1));
+            chromeFill.GradientStops.Add(new GradientStop(Color.FromRgb(0x1A, 0x1C, 0x22), 0));
+            chromeFill.GradientStops.Add(new GradientStop(Color.FromRgb(0x12, 0x13, 0x18), 0.55));
+            chromeFill.GradientStops.Add(new GradientStop(Color.FromRgb(0x0E, 0x0F, 0x13), 1));
             chromeFill.Freeze();
             _chrome.Background = chromeFill;
-            _chrome.BorderBrush = Ui.Solid(Colors.White, 0.10);
+            _chrome.BorderBrush = Ui.Solid(Colors.White, 0.09);
             _chrome.BorderThickness = new Thickness(1);
             _chrome.ClipToBounds = true;
             _chrome.SizeChanged += delegate(object snd, SizeChangedEventArgs ev)
@@ -118,12 +118,6 @@ namespace Hinoki
 
             Loaded += delegate
             {
-                var hwnd = new WindowInteropHelper(this).Handle;
-                // DWM SystemBackdrop: true Windows 11 acrylic, follows rounded corners natively
-                int backdrop = 2; // DWMSBT_PERSISTENTWINDOW (acrylic)
-                Native.DwmSetWindowAttribute(hwnd, Native.DWMWA_SYSTEMBACKDROP_TYPE, ref backdrop, sizeof(int));
-                int round = Native.DWMWCP_ROUND;
-                Native.DwmSetWindowAttribute(hwnd, Native.DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int));
                 Entrance();
             };
             Closed += delegate
