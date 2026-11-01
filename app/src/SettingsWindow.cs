@@ -88,12 +88,12 @@ namespace Hinoki
             var chromeFill = new LinearGradientBrush();
             chromeFill.StartPoint = new Point(0, 0);
             chromeFill.EndPoint = new Point(0.7, 1);
-            chromeFill.GradientStops.Add(new GradientStop(Color.FromRgb(0x18, 0x1A, 0x20), 0));
-            chromeFill.GradientStops.Add(new GradientStop(Color.FromRgb(0x11, 0x12, 0x17), 0.55));
-            chromeFill.GradientStops.Add(new GradientStop(Color.FromRgb(0x0D, 0x0E, 0x12), 1));
+            chromeFill.GradientStops.Add(new GradientStop(Color.FromArgb(0xC8, 0x1C, 0x1E, 0x24), 0));
+            chromeFill.GradientStops.Add(new GradientStop(Color.FromArgb(0xC0, 0x14, 0x15, 0x1B), 0.55));
+            chromeFill.GradientStops.Add(new GradientStop(Color.FromArgb(0xB8, 0x10, 0x11, 0x16), 1));
             chromeFill.Freeze();
             _chrome.Background = chromeFill;
-            _chrome.BorderBrush = Ui.Solid(Colors.White, 0.09);
+            _chrome.BorderBrush = Ui.Solid(Colors.White, 0.10);
             _chrome.BorderThickness = new Thickness(1);
             _chrome.ClipToBounds = true;
             _chrome.SizeChanged += delegate(object snd, SizeChangedEventArgs ev)
@@ -102,41 +102,7 @@ namespace Hinoki
             };
 
             // one subtle accent breath behind everything — the only decoration
-            var blob = new Ellipse();
-            blob.Width = 760; blob.Height = 760;
-            var bg = new RadialGradientBrush();
-            bg.GradientStops.Add(new GradientStop(Color.FromArgb(46, 0xA8, 0xB8, 0x99), 0));
-            bg.GradientStops.Add(new GradientStop(Color.FromArgb(0, 0xA8, 0xB8, 0x99), 1));
-            bg.Freeze();
-            blob.Fill = bg;
-            blob.IsHitTestVisible = false;
-            blob.HorizontalAlignment = HorizontalAlignment.Left;
-            blob.VerticalAlignment = VerticalAlignment.Top;
-            blob.Margin = new Thickness(-260, -260, 0, 0);
-
-            var sbXaml =
-                "<ControlTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' " +
-                "xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml'>" +
-                "  <Track x:Name='PART_Track'>" +
-                "    <Track.Thumb>" +
-                "      <Thumb>" +
-                "        <Thumb.Template>" +
-                "          <ControlTemplate><Border Background='Transparent' CornerRadius='3' Width='5' Height='40'/></ControlTemplate>" +
-                "        </Thumb.Template>" +
-                "      </Thumb>" +
-                "    </Track.Thumb>" +
-                "  </Track>" +
-                "</ControlTemplate>";
-            var sbTemplate = (ControlTemplate)System.Windows.Markup.XamlReader.Parse(sbXaml);
-            var sbStyle = new Style(typeof(System.Windows.Controls.Primitives.ScrollBar));
-            sbStyle.Setters.Add(new Setter(WidthProperty, 6.0));
-            sbStyle.Setters.Add(new Setter(TemplateProperty, sbTemplate));
-
-            Resources = new ResourceDictionary();
-            Resources.Add(typeof(System.Windows.Controls.Primitives.ScrollBar), sbStyle);
-
             var layout = new Grid();
-            layout.Children.Add(blob);
             layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(206) });
             layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
@@ -152,7 +118,12 @@ namespace Hinoki
 
             Loaded += delegate
             {
-                // single frame: my own border only — no DWM rounding, no acrylic sheet
+                var hwnd = new WindowInteropHelper(this).Handle;
+                // DWM SystemBackdrop: true Windows 11 acrylic, follows rounded corners natively
+                int backdrop = 2; // DWMSBT_PERSISTENTWINDOW (acrylic)
+                Native.DwmSetWindowAttribute(hwnd, Native.DWMWA_SYSTEMBACKDROP_TYPE, ref backdrop, sizeof(int));
+                int round = Native.DWMWCP_ROUND;
+                Native.DwmSetWindowAttribute(hwnd, Native.DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int));
                 Entrance();
             };
             Closed += delegate
@@ -231,7 +202,7 @@ namespace Hinoki
             bn.VerticalAlignment = VerticalAlignment.Center;
             bn.Margin = new Thickness(10, 0, 0, 0);
             bn.Children.Add(Glass.Label("Hinoki", 15.5, false, true));
-            bn.Children.Add(Glass.Label("v1.2", 10, true));
+            bn.Children.Add(Glass.Label("v1.3", 10, true));
             brand.Children.Add(bn);
             Grid.SetRow(brand, 0);
             rail.Children.Add(brand);
@@ -1382,7 +1353,7 @@ namespace Hinoki
             name.Margin = new Thickness(0, 14, 0, 0);
             stack.Children.Add(name);
 
-            var ver = Glass.Label("Версия 1.2 · Windows 10/11", 12, true);
+            var ver = Glass.Label("Версия 1.3 · Windows 10/11", 12, true);
             ver.HorizontalAlignment = HorizontalAlignment.Center;
             ver.Margin = new Thickness(0, 3, 0, 0);
             stack.Children.Add(ver);

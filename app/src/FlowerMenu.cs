@@ -613,8 +613,18 @@ namespace Hinoki
             }
 
             int step = style == "ripple" ? 90 : 40;
+            // stagger petals via single DispatcherTimer callback
             for (int i = 0; i < _petals.Count; i++)
-                _petals[i].PlayIn(TimeSpan.FromMilliseconds((55 + i * step) / sp));
+            {
+                int idx = i;
+                var dt = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds((55 + i * step) / sp) };
+                dt.Tick += delegate
+                {
+                    dt.Stop();
+                    _petals[idx].PlayIn(TimeSpan.Zero);
+                };
+                dt.Start();
+            }
         }
 
         public void PlayOut(Action done)
