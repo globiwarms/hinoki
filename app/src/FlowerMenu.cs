@@ -364,26 +364,23 @@ namespace Hinoki
             }
             Scale.ScaleX = 0.35; Scale.ScaleY = 0.35;
             Opacity = 0;
-            var t = new System.Windows.Threading.DispatcherTimer { Interval = delay };
-            t.Tick += delegate
-            {
-                t.Stop();
-                bool pureFade = style == "fade";
-                IEasingFunction e;
-                if (style == "smooth" || pureFade) e = new CubicEase { EasingMode = EasingMode.EaseOut };
-                else if (style == "elastic") e = new ElasticEase { Oscillations = 2, Springiness = 3.2, EasingMode = EasingMode.EaseOut };
-                else if (style == "bounce") e = new BounceEase { Bounces = 2, Bounciness = 2.4, EasingMode = EasingMode.EaseOut };
-                else if (style == "ripple") e = new BackEase { Amplitude = 0.8, EasingMode = EasingMode.EaseOut };
-                else e = new BackEase { Amplitude = 0.45, EasingMode = EasingMode.EaseOut };
-                if (pureFade) { Scale.ScaleX = 1; Scale.ScaleY = 1; }
-                var gx = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds((pureFade ? 10 : 460) / sp))) { EasingFunction = e };
-                var gy = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds((pureFade ? 10 : 460) / sp))) { EasingFunction = e };
-                Scale.BeginAnimation(ScaleTransform.ScaleXProperty, gx);
-                Scale.BeginAnimation(ScaleTransform.ScaleYProperty, gy);
-                var go = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds((style == "ripple" ? 340 : 220) / sp)));
-                BeginAnimation(UIElement.OpacityProperty, go);
-            };
-            t.Start();
+
+            bool pureFade = style == "fade";
+            IEasingFunction e;
+            if (style == "smooth" || pureFade) e = new CubicEase { EasingMode = EasingMode.EaseOut };
+            else if (style == "elastic") e = new ElasticEase { Oscillations = 2, Springiness = 3.2, EasingMode = EasingMode.EaseOut };
+            else if (style == "bounce") e = new BounceEase { Bounces = 2, Bounciness = 2.4, EasingMode = EasingMode.EaseOut };
+            else if (style == "ripple") e = new BackEase { Amplitude = 0.8, EasingMode = EasingMode.EaseOut };
+            else e = new BackEase { Amplitude = 0.45, EasingMode = EasingMode.EaseOut };
+            if (pureFade) { Scale.ScaleX = 1; Scale.ScaleY = 1; }
+
+            var dur = new Duration(TimeSpan.FromMilliseconds((pureFade ? 10 : 460) / sp));
+            var gx = new DoubleAnimation(1, dur) { EasingFunction = e, BeginTime = delay };
+            var gy = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds((pureFade ? 10 : 460) / sp))) { EasingFunction = e, BeginTime = delay };
+            var go = new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds((style == "ripple" ? 340 : 220) / sp))) { BeginTime = delay };
+            Scale.BeginAnimation(ScaleTransform.ScaleXProperty, gx);
+            Scale.BeginAnimation(ScaleTransform.ScaleYProperty, gy);
+            BeginAnimation(UIElement.OpacityProperty, go);
         }
     }
 
