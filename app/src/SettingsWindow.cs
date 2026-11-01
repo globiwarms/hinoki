@@ -55,7 +55,7 @@ namespace Hinoki
         Dictionary<string, FrameworkElement> _pages = new Dictionary<string, FrameworkElement>();
         ContentControl _pageHost;
         GlassTextBox _iconSearch;
-        System.Windows.Controls.Primitives.UniformGrid _iconPanel;
+        WrapPanel _iconPanel;
         bool _expandedIcons;
         string _expandLabel = "";
         System.Windows.Threading.DispatcherTimer _rebuildDebounce;
@@ -743,13 +743,14 @@ namespace Hinoki
             _iconSearch.Margin = new Thickness(0, 2, 0, 8);
             _editor.Children.Add(_iconSearch);
 
-            _iconPanel = new System.Windows.Controls.Primitives.UniformGrid();
-            _iconPanel.Columns = 8;
+            _iconPanel = new WrapPanel();
             _iconPanel.Margin = new Thickness(0, 2, 0, 0);
+            _iconPanel.HorizontalAlignment = HorizontalAlignment.Center;
             var iconScroll = new ScrollViewer();
             iconScroll.MaxHeight = 224;
             iconScroll.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
             iconScroll.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
+            iconScroll.HorizontalAlignment = HorizontalAlignment.Stretch;
             iconScroll.Content = _iconPanel;
             _editor.Children.Add(iconScroll);
 
@@ -1399,15 +1400,7 @@ namespace Hinoki
             links.Margin = new Thickness(0, 18, 0, 0);
             var gh = new PillButton("GitHub", false);
             gh.Clicked += delegate { ActionEngine.OpenLink("https://github.com/globiwarms/hinoki"); };
-            var site = new PillButton("Сайт", false);
-            site.Margin = new Thickness(8, 0, 0, 0);
-            site.Clicked += delegate { ActionEngine.OpenLink("https://globiwarms.github.io/hinoki/"); };
-            var upd = new PillButton("Обновления", false);
-            upd.Margin = new Thickness(8, 0, 0, 0);
-            upd.Clicked += delegate { ActionEngine.OpenLink("https://github.com/globiwarms/hinoki/releases/latest"); };
             links.Children.Add(gh);
-            links.Children.Add(site);
-            links.Children.Add(upd);
             stack.Children.Add(links);
 
             var reset = new PillButton("Сбросить все настройки", false);
